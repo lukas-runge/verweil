@@ -44,9 +44,12 @@ internal data class VisitBody(
     @SerialName("started_at") val startedAt: String,
     @SerialName("ended_at") val endedAt: String,
     /** Dawarich requires a name; with status "suggested" it reverse-geocodes a real one for new places. */
-    val name: String = "Suggested place",
+    val name: String = SUGGESTED_PLACE,
     val status: String = "suggested",
 )
+
+/** The name Verweil gives its visits; Dawarich shows the place it finds instead. */
+internal const val SUGGESTED_PLACE = "Suggested place"
 
 // Mobile auth API: app/controllers/api/v1/auth/{sessions,otp_challenges,base}_controller.rb.
 
@@ -88,3 +91,39 @@ data class ConnectionCode(
     @SerialName("server_url") val serverUrl: String,
     @SerialName("api_key") val apiKey: String,
 )
+
+// GET /api/v1/timeline (Dawarich 1.3 and later): app/services/timeline/day_assembler.rb.
+
+@Serializable
+internal data class TimelineResponse(val days: List<TimelineDayDto> = emptyList())
+
+@Serializable
+internal data class TimelineDayDto(val date: String, val entries: List<TimelineEntryDto> = emptyList())
+
+/** A visit or a journey; which one is in [type]. Fields of the other kind stay null. */
+@Serializable
+internal data class TimelineEntryDto(
+    val type: String,
+    @SerialName("started_at") val startedAt: String,
+    @SerialName("ended_at") val endedAt: String,
+    // Visits
+    @SerialName("visit_id") val visitId: Long? = null,
+    val name: String? = null,
+    val status: String? = null,
+    val place: TimelinePlaceDto? = null,
+    val area: TimelineAreaDto? = null,
+    // Journeys
+    @SerialName("track_id") val trackId: Long? = null,
+    /** In [distanceUnit], rounded to 0.1. */
+    val distance: Double? = null,
+    @SerialName("distance_unit") val distanceUnit: String? = null,
+    @SerialName("dominant_mode") val dominantMode: String? = null,
+    /** Set on the second day of a journey across midnight: that day's share of the distance. */
+    @SerialName("day_distance") val dayDistance: Double? = null,
+)
+
+@Serializable
+internal data class TimelinePlaceDto(val name: String? = null, val lat: Double? = null, val lng: Double? = null)
+
+@Serializable
+internal data class TimelineAreaDto(val name: String? = null, val lat: Double? = null, val lng: Double? = null)
