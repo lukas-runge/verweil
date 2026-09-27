@@ -1,0 +1,2 @@
+-- Verweil no longer sends visits: Dawarich detects stays from the points (see docs/concept.md).
+DROP TABLE pending_visit;

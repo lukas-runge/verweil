@@ -39,21 +39,12 @@ class OutboxTest {
     }
 
     @Test
-    fun flushSendsPointsInBatchesBeforeVisits() = runTest {
+    fun flushSendsPointsInBatches() = runTest {
         outbox.add(List(5) { PointItem(timeMs = it.toLong(), lat = 52.0, lon = 13.0) })
-        outbox.add(listOf(VisitItem(lat = 52.0, lon = 13.0, startedMs = 0, endedMs = 4)))
         val (client, paths) = client()
 
-        assertEquals(6, outbox.flush(client, batchSize = 2))
-        assertEquals(
-            listOf(
-                "/api/v1/overland/batches",
-                "/api/v1/overland/batches",
-                "/api/v1/overland/batches",
-                "/api/v1/visits",
-            ),
-            paths,
-        )
+        assertEquals(5, outbox.flush(client, batchSize = 2))
+        assertEquals(List(3) { "/api/v1/overland/batches" }, paths)
         assertEquals(0, outbox.counts().pending)
     }
 
@@ -70,11 +61,10 @@ class OutboxTest {
     @Test
     fun refusedDataIsSetAsideSoTheRestStillGoes() = runTest {
         outbox.add(List(4) { PointItem(timeMs = it.toLong(), lat = 52.0, lon = 13.0) })
-        outbox.add(listOf(VisitItem(lat = 52.0, lon = 13.0, startedMs = 0, endedMs = 4)))
-        val (client, paths) = client(HttpStatusCode.UnprocessableEntity, HttpStatusCode.Created, HttpStatusCode.Created)
+        val (client, paths) = client(HttpStatusCode.UnprocessableEntity, HttpStatusCode.Created)
 
-        assertEquals(3, outbox.flush(client, batchSize = 2))
-        assertEquals(3, paths.size)
+        assertEquals(2, outbox.flush(client, batchSize = 2))
+        assertEquals(2, paths.size)
         val counts = outbox.counts()
         assertEquals(0, counts.pending)
         assertEquals(2, counts.rejected)

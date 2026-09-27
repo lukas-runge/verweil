@@ -1,7 +1,6 @@
 package de.lukasrunge.verweil.core.dawarich
 
 import de.lukasrunge.verweil.core.upload.PointItem
-import de.lukasrunge.verweil.core.upload.VisitItem
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -58,20 +57,6 @@ class DawarichClientTest {
         assertEquals("walking", properties["motion"]!!.jsonArray.single().jsonPrimitive.content)
         assertEquals("pixel", properties["device_id"]!!.jsonPrimitive.content)
         assertFalse("speed" in properties, "unknown values are omitted, not sent as null")
-    }
-
-    @Test
-    fun visitsAreCreatedAsSuggestions() = runTest {
-        client().createVisit(VisitItem(lat = 52.52, lon = 13.405, startedMs = 1_790_000_000_000, endedMs = 1_790_003_600_000))
-
-        val (path, body) = requests.single()
-        assertEquals("POST /api/v1/visits", path)
-        val visit = body["visit"]!!.jsonObject
-        assertEquals("2026-09-21T14:13:20Z", visit["started_at"]!!.jsonPrimitive.content)
-        assertEquals("2026-09-21T15:13:20Z", visit["ended_at"]!!.jsonPrimitive.content)
-        // A suggestion: Dawarich names the place, the user decides whether it stays.
-        assertEquals("suggested", visit["status"]!!.jsonPrimitive.content)
-        assertEquals("Suggested place", visit["name"]!!.jsonPrimitive.content)
     }
 
     @Test

@@ -1,7 +1,6 @@
 package de.lukasrunge.verweil.core.dawarich
 
 import de.lukasrunge.verweil.core.upload.PointItem
-import de.lukasrunge.verweil.core.upload.VisitItem
 import de.lukasrunge.verweil.core.model.GeoPoint
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
 import de.lukasrunge.verweil.core.timeline.TravelMode
@@ -30,7 +29,8 @@ class DawarichException(message: String, val status: Int? = null) : Exception(me
 
 /**
  * Talks to existing Dawarich APIs, so no server changes are needed:
- * track points through the Overland batch endpoint, stays through the visits API, and back through the timeline API.
+ * points through the Overland batch endpoint, and the day back through the timeline API. Visits are Dawarich's:
+ * it detects them from the points.
  * [customHeaders] go along with every request, for servers behind an authenticating reverse proxy.
  */
 class DawarichClient(
@@ -51,23 +51,6 @@ class DawarichClient(
             bearerAuth(apiKey)
             contentType(ContentType.Application.Json)
             setBody(batch)
-        }.requireSuccess()
-    }
-
-    /** Creates the stay as a suggested visit, which Dawarich names from its geocoder and the user can confirm. */
-    suspend fun createVisit(visit: VisitItem) {
-        val body = VisitRequest(
-            VisitBody(
-                latitude = visit.lat,
-                longitude = visit.lon,
-                startedAt = visit.startedMs.toIsoString(),
-                endedAt = visit.endedMs.toIsoString(),
-            ),
-        )
-        http.post("$baseUrl/api/v1/visits") {
-            bearerAuth(apiKey)
-            contentType(ContentType.Application.Json)
-            setBody(body)
         }.requireSuccess()
     }
 
@@ -120,7 +103,7 @@ private fun TimelineEntryDto.toEntry(): TimelineEntry? = when (type) {
         point = place?.let { p -> if (p.lat != null && p.lng != null) GeoPoint(p.lat, p.lng) else null }
             ?: area?.let { a -> if (a.lat != null && a.lng != null) GeoPoint(a.lat, a.lng) else null },
         // Dawarich's own order (TimelineHelper#visit_entry_display_name), so a visit renamed in Dawarich shows renamed.
-        // Verweil's visits are called "Suggested place"; at a place Dawarich already knows they keep that name.
+        // Visits created with Dawarich's placeholder name "Suggested place" keep it at a place Dawarich already knows.
         name = listOf(name, place?.name, area?.name).firstOrNull { !it.isNullOrBlank() && it != SUGGESTED_PLACE },
         visitId = visitId,
     )
