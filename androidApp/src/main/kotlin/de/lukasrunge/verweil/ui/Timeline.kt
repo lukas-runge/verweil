@@ -58,7 +58,7 @@ private sealed interface TimelineRow {
 /**
  * The day as a line: a stay is a solid block, a move a dotted path, a gap a faint dashed line.
  * [dayStartMs] clips entries that began the day before, so the first row starts at midnight.
- * With [markPending], entries only this phone knows say so: Dawarich does not show them yet.
+ * With [markPending], the phone's newest entries say that they are not in Dawarich yet.
  */
 @Composable
 fun Timeline(
@@ -72,10 +72,13 @@ fun Timeline(
 ) {
     val rows = remember(entries) {
         buildList {
-            entries.forEachIndexed { i, entry ->
-                val previous = entries.getOrNull(i - 1)
-                if (previous != null && entry.startMs - previous.endMs > GAP_MS) add(TimelineRow.Gap(previous.endMs, entry.startMs))
+            // Measured from the furthest end so far: a long stay can reach past the move listed after it.
+            var coveredUntil: Long? = null
+            entries.forEach { entry ->
+                val until = coveredUntil
+                if (until != null && entry.startMs - until > GAP_MS) add(TimelineRow.Gap(until, entry.startMs))
                 add(TimelineRow.Item(entry))
+                coveredUntil = maxOf(until ?: entry.endMs, entry.endMs)
             }
         }
     }
@@ -88,7 +91,11 @@ fun Timeline(
                     nowMs = nowMs,
                     // Only the newest entry can still be going on, and only while tracking runs.
                     live = live && row.entry.ongoing && i == rows.lastIndex,
-                    pending = markPending && row.entry.source == Source.PHONE,
+                    note = if (!markPending) null else when (row.entry.source) {
+                        Source.PHONE -> R.string.timeline_pending
+                        // What the phone saw where Dawarich has a hole just fills it; Dawarich keeps its own view.
+                        Source.PHONE_MISSING, Source.DAWARICH -> null
+                    },
                     onOpenMove = onOpenMove,
                 )
                 is TimelineRow.Gap -> GapRow(row)
@@ -98,7 +105,7 @@ fun Timeline(
 }
 
 @Composable
-private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, pending: Boolean, onOpenMove: () -> Unit) {
+private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, note: Int?, onOpenMove: () -> Unit) {
     val context = LocalContext.current
     val colors = LocalStateColors.current
     val endMs = if (live) nowMs else entry.endMs
@@ -182,9 +189,9 @@ private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boo
                 }
             }
             Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (pending && !live) {
+            if (note != null && !live) {
                 Text(
-                    stringResource(R.string.timeline_pending),
+                    stringResource(note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline,
                 )
