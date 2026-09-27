@@ -2,17 +2,17 @@ package de.lukasrunge.verweil.tracking
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.location.LocationManager
 import android.os.Looper
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
@@ -21,21 +21,28 @@ import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationAvailability
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import de.lukasrunge.verweil.Notifications
+import de.lukasrunge.verweil.R
+import de.lukasrunge.verweil.TrackingStatus
 import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.engine.EngineConfig
 import de.lukasrunge.verweil.core.engine.Mode
+import de.lukasrunge.verweil.core.journal.SegmentKind
 import de.lukasrunge.verweil.core.model.Fix
 import de.lukasrunge.verweil.core.model.GeoPoint
 import de.lukasrunge.verweil.core.model.SensorEvent
 import de.lukasrunge.verweil.core.model.Tick
+import de.lukasrunge.verweil.core.model.WifiScan
 import de.lukasrunge.verweil.core.tracking.Tracker
 import de.lukasrunge.verweil.hasPermission
-import de.lukasrunge.verweil.ui.MainActivity
+import de.lukasrunge.verweil.isLocationEnabled
+import de.lukasrunge.verweil.ui.formatTime
 import de.lukasrunge.verweil.upload.UploadWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -44,6 +51,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.days
 
 /** How precisely and how often to ask for location. */
 private enum class LocationProfile(val priority: Int, val intervalMs: Long, val minIntervalMs: Long) {
@@ -73,8 +81,10 @@ class TrackingService : LifecycleService() {
     private var profile: LocationProfile? = null
     private var geofencedAnchor: GeoPoint? = null
     private var geofenceActive = false
-    private var notifiedMode: Mode? = null
     private var started = false
+
+    /** What the notification shows; it only changes when this does. */
+    private var notificationTitle: String? = null
 
     @Volatile
     private var wifi: WifiScanner? = null
@@ -84,11 +94,24 @@ class TrackingService : LifecycleService() {
     private var stopRequested = false
 
     @Volatile
-    private var recordRawEvents = true
+    private var recordRawEvents = false
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.locations.forEach { events.trySend(it.toFix()) }
+        }
+
+        override fun onLocationAvailability(availability: LocationAvailability) {
+            app.status.update { it.copy(locationAvailable = availability.isLocationAvailable) }
+            refreshNotification()
+        }
+    }
+
+    /** Location switched on or off in the quick settings. */
+    private val locationModeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            app.status.update { it.copy(locationEnabled = isLocationEnabled()) }
+            refreshNotification()
         }
     }
 
@@ -110,15 +133,28 @@ class TrackingService : LifecycleService() {
         }
         if (started) return START_STICKY
         if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !startInForeground()) {
+            // Tracking should run but cannot; the watchdog tells the user if it cannot restart it either.
             stopSelf()
             return START_NOT_STICKY
         }
         started = true
-        app.scope.launch { app.settings.setTrackingEnabled(true) }
+        app.scope.launch {
+            app.settings.setTrackingEnabled(true)
+            app.settings.setInterruptionNotified(false)
+        }
+        Notifications.clearTrackingInterrupted(this)
+        TrackingWatchdog.schedule(this)
 
         fused = LocationServices.getFusedLocationProviderClient(this)
         geofence = StayGeofence(this, EngineConfig().exitRadiusM.toFloat())
         requestActivityTransitions()
+        ContextCompat.registerReceiver(
+            this,
+            locationModeReceiver,
+            IntentFilter(LocationManager.MODE_CHANGED_ACTION),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        app.status.update { TrackingStatus(running = true, locationEnabled = isLocationEnabled()) }
 
         lifecycleScope.launch { app.settings.values.collect { recordRawEvents = it.recordRawEvents } }
         lifecycleScope.launch { app.sensorEvents.collect { events.trySend(it) } }
@@ -130,6 +166,9 @@ class TrackingService : LifecycleService() {
             }
         }
         lifecycleScope.launch(Dispatchers.IO) {
+            val recordings = Recordings(this@TrackingService)
+            recordings.pruneOld()
+            app.journal.prune(beforeMs = System.currentTimeMillis() - JOURNAL_KEEP_MS)
             // Continues a stay that was going on when the app was killed.
             val tracker = Tracker(app.database)
             val scanner = WifiScanner(this@TrackingService, app.settings.wifiSalt()) { events.trySend(it) }
@@ -137,10 +176,8 @@ class TrackingService : LifecycleService() {
                 scanner.start()
                 wifi = scanner
             }
-            processEvents(tracker)
+            processEvents(tracker, recordings)
         }
-
-        app.status.update { it.copy(running = true, mode = null) }
         return START_STICKY
     }
 
@@ -151,16 +188,18 @@ class TrackingService : LifecycleService() {
             if (hasPermission(Manifest.permission.ACTIVITY_RECOGNITION)) {
                 ActivityRecognition.getClient(this).removeActivityTransitionUpdates(transitionsIntent)
             }
+            unregisterReceiver(locationModeReceiver)
             wifi?.stop()
         }
         events.close()
-        app.status.update { it.copy(running = false) }
+        app.status.update { it.copy(running = false, mode = null) }
         super.onDestroy()
     }
 
     /** The event loop drains what is queued, closes an open stay and then stops the service. */
     private fun requestStop() {
         app.scope.launch { app.settings.setTrackingEnabled(false) }
+        TrackingWatchdog.cancel(this)
         if (!started) {
             stopSelf()
             return
@@ -169,18 +208,27 @@ class TrackingService : LifecycleService() {
         events.close()
     }
 
-    private suspend fun processEvents(tracker: Tracker) {
-        val recorder = Recorder(this)
+    private suspend fun processEvents(tracker: Tracker, recordings: Recordings) {
         adapt(tracker, System.currentTimeMillis())
         for (event in events) {
-            if (recordRawEvents) recorder.write(event)
+            if (recordRawEvents) recordings.write(event)
             if (tracker.process(event).isNotEmpty()) UploadWorker.enqueue(this)
+            observe(event)
             adapt(tracker, event.timeMs)
         }
         if (stopRequested) {
             if (tracker.finish().isNotEmpty()) UploadWorker.enqueue(this)
             geofence.moveTo(null)
             withContext(Dispatchers.Main) { stopSelf() }
+        }
+    }
+
+    /** Keeps what the diagnostics screen shows about the sensors up to date. */
+    private fun observe(event: SensorEvent) {
+        when (event) {
+            is Fix -> app.status.update { it.copy(lastFixMs = event.timeMs, lastFixAccuracyM = event.accuracy) }
+            is WifiScan -> app.status.update { it.copy(lastWifiScanMs = event.timeMs, lastWifiAccessPoints = event.bssids.size) }
+            else -> Unit
         }
     }
 
@@ -192,20 +240,25 @@ class TrackingService : LifecycleService() {
             geofenceActive = geofence.moveTo(anchor)
             geofencedAnchor = anchor
         }
-        applyLocationProfile(
-            when {
-                mode != Mode.STAYING -> LocationProfile.MOVING
-                geofenceActive -> LocationProfile.STAYING_GEOFENCED
-                else -> LocationProfile.STAYING
-            },
-        )
+        val next = when {
+            mode != Mode.STAYING -> LocationProfile.MOVING
+            geofenceActive -> LocationProfile.STAYING_GEOFENCED
+            else -> LocationProfile.STAYING
+        }
+        applyLocationProfile(next)
         // Fingerprints for the place memory; scans while moving would describe nothing.
         if (mode != Mode.MOVING) wifi?.requestScanIfDue(nowMs)
-        if (mode != notifiedMode) {
-            notifiedMode = mode
-            getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(mode))
+        val modeChanged = mode != app.status.value.mode
+        app.status.update {
+            it.copy(
+                mode = mode,
+                activity = tracker.activity,
+                lastEventMs = nowMs,
+                locationProfile = next.name,
+                geofenceActive = geofenceActive,
+            )
         }
-        app.status.update { it.copy(mode = mode, lastEventMs = nowMs) }
+        if (modeChanged) refreshNotification()
     }
 
     @SuppressLint("MissingPermission") // Checked in onStartCommand.
@@ -233,11 +286,15 @@ class TrackingService : LifecycleService() {
     }
 
     private fun startInForeground(): Boolean {
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Tracking", NotificationManager.IMPORTANCE_LOW),
-        )
+        val title = getString(R.string.notification_starting)
+        notificationTitle = title
         return try {
-            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(null), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            ServiceCompat.startForeground(
+                this,
+                Notifications.TRACKING_ID,
+                Notifications.tracking(this, title, stopIntent()),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+            )
             true
         } catch (e: RuntimeException) {
             // SecurityException or ForegroundServiceStartNotAllowedException, e.g. when the system restarts
@@ -247,48 +304,67 @@ class TrackingService : LifecycleService() {
         }
     }
 
-    private fun notification(mode: Mode?): Notification {
-        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val stop = PendingIntent.getService(
-            this,
-            0,
-            Intent(this, TrackingService::class.java).setAction(ACTION_STOP),
-            PendingIntent.FLAG_IMMUTABLE,
-        )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentTitle("Verweil is recording your location")
-            .setContentText(mode.describe())
-            .setContentIntent(open)
-            .addAction(0, "Stop", stop)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .build()
+    /** Shows the current state in the notification: where the user is and since when, or what is wrong. */
+    private fun refreshNotification() {
+        lifecycleScope.launch {
+            val status = app.status.value
+            val title = when {
+                !status.locationEnabled -> getString(R.string.notification_location_off)
+                status.mode == Mode.STAYING -> {
+                    val since = withContext(Dispatchers.IO) {
+                        app.journal.latest()?.takeIf { it.kind == SegmentKind.STAY && it.ongoing }?.startMs
+                    }
+                    if (since == null) getString(R.string.mode_staying)
+                    else getString(R.string.notification_staying_since, formatTime(this@TrackingService, since))
+                }
+                status.mode == Mode.MOVING -> getString(R.string.mode_moving)
+                status.mode == Mode.SETTLING -> getString(R.string.mode_settling)
+                status.mode == Mode.LEAVING -> getString(R.string.mode_leaving)
+                else -> getString(R.string.notification_starting)
+            }
+            if (title == notificationTitle || !started) return@launch
+            notificationTitle = title
+            getSystemService(NotificationManager::class.java)
+                .notify(Notifications.TRACKING_ID, Notifications.tracking(this@TrackingService, title, stopIntent()))
+        }
     }
+
+    private fun stopIntent(): PendingIntent = PendingIntent.getService(
+        this,
+        0,
+        Intent(this, TrackingService::class.java).setAction(ACTION_STOP),
+        PendingIntent.FLAG_IMMUTABLE,
+    )
 
     companion object {
         private const val TAG = "TrackingService"
-        private const val CHANNEL_ID = "tracking"
-        private const val NOTIFICATION_ID = 1
         private const val TICK_INTERVAL_MS = 60_000L
         private const val ACTION_STOP = "de.lukasrunge.verweil.STOP"
 
-        fun start(context: Context) =
-            ContextCompat.startForegroundService(context, Intent(context, TrackingService::class.java))
+        /** The timeline on the phone covers this long; Dawarich keeps the history. */
+        private val JOURNAL_KEEP_MS = 30.days.inWholeMilliseconds
+
+        /**
+         * Starts tracking if Android allows it. Returns false without precise location, which the service
+         * cannot run without, or when Android refuses a start from the background.
+         */
+        fun start(context: Context): Boolean {
+            if (!context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) return false
+            return try {
+                ContextCompat.startForegroundService(context, Intent(context, TrackingService::class.java))
+                true
+            } catch (e: IllegalStateException) {
+                // ForegroundServiceStartNotAllowedException: in the background without an exemption.
+                Log.w(TAG, "Could not start tracking", e)
+                false
+            }
+        }
 
         /** Closes an open stay, queues it for upload and stops. Tracking stays off after a reboot. */
         fun stop(context: Context) {
             context.startService(Intent(context, TrackingService::class.java).setAction(ACTION_STOP))
         }
     }
-}
-
-private fun Mode?.describe(): String = when (this) {
-    null -> "Starting"
-    Mode.MOVING -> "Moving"
-    Mode.SETTLING -> "Arriving"
-    Mode.STAYING -> "Staying"
-    Mode.LEAVING -> "Maybe leaving"
 }
 
 private fun Location.toFix() = Fix(

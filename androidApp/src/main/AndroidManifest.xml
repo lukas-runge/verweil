@@ -20,9 +20,9 @@
         android:name=".VerweilApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:icon="@drawable/ic_launcher"
-        android:label="Verweil"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Verweil"
         android:usesCleartextTraffic="true"
         tools:ignore="DataExtractionRules">
         <!-- allowBackup="false" already disables backups below Android 12; no fullBackupContent needed. -->
@@ -54,6 +54,17 @@
         <receiver
             android:name=".tracking.GeofenceReceiver"
             android:exported="false" />
+
+        <!-- Shares raw recordings from the diagnostics screen. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <receiver
             android:name=".tracking.BootReceiver"

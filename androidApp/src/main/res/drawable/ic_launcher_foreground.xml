@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A dotted path arriving at a place: moving becomes staying, as in the app's timeline. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/icon_path"
+        android:pathData="M33.6,75a2.4,2.4 0,1 0,4.8 0a2.4,2.4 0,1 0,-4.8 0zM37.7,68.5a2.8,2.8 0,1 0,5.6 0a2.8,2.8 0,1 0,-5.6 0zM42.3,63a3.2,3.2 0,1 0,6.4 0a3.2,3.2 0,1 0,-6.4 0z" />
+    <path
+        android:strokeColor="@color/icon_foreground"
+        android:strokeWidth="4.5"
+        android:fillColor="#00000000"
+        android:pathData="M48,47a13,13 0,1 0,26 0a13,13 0,1 0,-26 0z" />
+    <path
+        android:fillColor="@color/icon_foreground"
+        android:pathData="M55.5,47a5.5,5.5 0,1 0,11 0a5.5,5.5 0,1 0,-11 0z" />
+</vector>

@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Actions -->
+    <string name="action_allow">Erlauben</string>
+    <string name="action_allow_location">Standortzugriff erlauben</string>
+    <string name="action_allow_precise">Genauen Standort erlauben</string>
+    <string name="action_allow_all_the_time">Immer erlauben</string>
+    <string name="action_allow_background">Im Hintergrund erlauben</string>
+    <string name="action_back">Zurück</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_delete">Löschen</string>
+    <string name="action_delete_all">Alle Aufzeichnungen löschen</string>
+    <string name="action_forget">Vergessen</string>
+    <string name="action_later">Später</string>
+    <string name="action_next_day">Nächster Tag</string>
+    <string name="action_previous_day">Vorheriger Tag</string>
+    <string name="action_open_dawarich">Dawarich öffnen</string>
+    <string name="action_open_settings">Einstellungen öffnen</string>
+    <string name="action_retry">Erneut senden</string>
+    <string name="action_save">Speichern</string>
+    <string name="action_share">Teilen</string>
+    <string name="action_share_all">Alle teilen</string>
+    <string name="action_sign_in_again">Neu anmelden</string>
+    <string name="action_sign_out">Abmelden</string>
+    <string name="action_start_tracking">Tracking starten</string>
+    <string name="action_stop_tracking">Tracking beenden</string>
+    <string name="action_turn_on_location">Standort einschalten</string>
+    <string name="action_upload_now">Jetzt senden</string>
+
+    <!-- States of the engine -->
+    <string name="mode_starting">Startet</string>
+    <string name="mode_moving">Unterwegs</string>
+    <string name="mode_settling">Angekommen?</string>
+    <string name="mode_staying">Vor Ort</string>
+    <string name="mode_leaving">Aufbruch?</string>
+    <string name="moving_walking">Zu Fuß</string>
+    <string name="moving_running">Laufen</string>
+    <string name="moving_cycling">Mit dem Rad</string>
+    <string name="moving_vehicle">Mit Auto oder Bahn</string>
+    <string name="moving_unknown">Unterwegs</string>
+
+    <!-- Main screen -->
+    <string name="hero_recording">Zeichnet auf</string>
+    <string name="hero_not_recording">Zeichnet nicht auf</string>
+    <string name="hero_off">Tracking ist aus</string>
+    <string name="hero_off_detail">Starte das Tracking, dann erkennt Verweil, wo du bleibst und wie du unterwegs bist.</string>
+    <string name="hero_interrupted">Tracking unterbrochen</string>
+    <string name="hero_interrupted_no_location">Verweil hat keinen Zugriff mehr auf deinen Standort. Erlaube ihn, um weiterzumachen.</string>
+    <string name="hero_location_off">Standort ist aus</string>
+    <string name="hero_location_off_detail">Verweil zeichnet nichts auf, bis du den Standort wieder einschaltest.</string>
+    <string name="hero_since_for">Seit %1$s (%2$s)</string>
+    <string name="hero_since_distance">Seit %1$s, bisher %2$s</string>
+    <string name="hero_staying_detail">Solange du bleibst, sendet Verweil einen Punkt pro Stunde.</string>
+    <string name="hero_moving_detail">Verweil zeichnet deinen Weg auf.</string>
+    <string name="hero_settling_detail">Verweil wartet ein paar Minuten, ob du hier bleibst.</string>
+    <string name="hero_leaving_detail">Verweil prüft, ob du gehst.</string>
+    <string name="hero_starting_detail">Warte auf den ersten Standort.</string>
+    <string name="hero_last_fix">Letzter Standort um %1$s, auf %2$d m genau</string>
+    <string name="hero_waiting_for_fix">Noch kein Standort</string>
+    <string name="hero_no_signal">Gerade kein Standortsignal</string>
+
+    <string name="stop_title">Tracking beenden?</string>
+    <string name="stop_text">Ein laufender Aufenthalt endet jetzt und geht an Dawarich. Das Tracking bleibt aus, bis du es wieder startest, auch nach einem Neustart.</string>
+
+    <string name="notice_auth_title">Dawarich lehnt den API-Schlüssel ab</string>
+    <string name="notice_auth_text">Neue Standorte warten auf diesem Telefon, bis du dich neu anmeldest.</string>
+    <string name="notice_approximate_title">Nur ungefährer Standort</string>
+    <string name="notice_approximate_text">Mit ungefährem Standort liegen Aufenthalte und Wege Hunderte Meter daneben.</string>
+    <string name="notice_background_title">Nur solange die App offen ist</string>
+    <string name="notice_background_text">Ohne „Immer zulassen“ kann Android das Tracking im Hintergrund beenden, und nach einem Neustart geht es nicht von selbst weiter.</string>
+    <string name="notice_battery_title">Akku-Optimierung ist an</string>
+    <string name="notice_battery_text">Android kann Verweil im Hintergrund anhalten, dann fehlen Teile deines Tages.</string>
+    <string name="notice_activity_title">Bewegungserkennung ist aus</string>
+    <string name="notice_activity_text">Verweil bemerkt Aufbrüche später und braucht mehr Akku.</string>
+    <string name="notice_notifications_title">Mitteilungen sind aus</string>
+    <string name="notice_notifications_text">Du erfährst nicht, wenn das Tracking unterbrochen wurde.</string>
+
+    <string name="day_today">Heute</string>
+    <string name="day_yesterday">Gestern</string>
+    <plurals name="timeline_summary">
+        <item quantity="one">%1$d Ort, %2$s unterwegs</item>
+        <item quantity="other">%1$d Orte, %2$s unterwegs</item>
+    </plurals>
+    <string name="timeline_empty_today">Heute ist noch nichts aufgezeichnet. Aufenthalte und Wege erscheinen hier, sobald Verweil sie erkennt.</string>
+    <string name="timeline_empty">An diesem Tag ist nichts aufgezeichnet.</string>
+    <string name="timeline_stay">Aufenthalt</string>
+    <string name="timeline_since">Seit %1$s</string>
+    <string name="timeline_open_since">Offen seit %1$s</string>
+    <string name="timeline_move_detail">%1$s in %2$s</string>
+    <string name="timeline_gap">%1$s nicht aufgezeichnet</string>
+
+    <string name="upload_title">Dawarich</string>
+    <string name="upload_done">Alles gesendet</string>
+    <string name="upload_last">Zuletzt gesendet um %1$s</string>
+    <string name="upload_soon">Geht in den nächsten Minuten raus</string>
+    <string name="upload_failed">Senden fehlgeschlagen, neuer Versuch folgt: %1$s</string>
+    <string name="upload_auth_refused">Wartet, bis du dich neu anmeldest</string>
+    <plurals name="upload_waiting">
+        <item quantity="one">%d Eintrag wartet</item>
+        <item quantity="other">%d Einträge warten</item>
+    </plurals>
+    <plurals name="upload_rejected">
+        <item quantity="one">Dawarich hat %d Eintrag abgelehnt</item>
+        <item quantity="other">Dawarich hat %d Einträge abgelehnt</item>
+    </plurals>
+
+    <!-- Setup -->
+    <string name="setup_title">Fast fertig</string>
+    <string name="setup_intro">Android muss Verweil ein paar Dinge erlauben, damit es deinen Tag verfolgen kann. Deine Standorte gehen nur an deinen Dawarich-Server.</string>
+    <string name="setup_location_title">Genauer Standort</string>
+    <string name="setup_location_text">Für deine Wege und die Orte, an denen du bleibst. Erforderlich.</string>
+    <string name="setup_activity_title">Bewegungserkennung</string>
+    <string name="setup_activity_text">Unterscheidet Sitzen von Gehen oder Fahren. Verweil bemerkt Aufbrüche früher und spart Akku.</string>
+    <string name="setup_notifications_title">Mitteilungen</string>
+    <string name="setup_notifications_text">Android zeigt eine an, solange Verweil aufzeichnet. Verweil meldet sich außerdem, wenn das Tracking unterbrochen wurde.</string>
+    <string name="setup_background_title">Standort immer</string>
+    <string name="setup_background_text">Damit Verweil auch bei geschlossener App aufzeichnet und nach einem Neustart weitermacht. Wähle in den Einstellungen „Immer zulassen“.</string>
+    <string name="setup_battery_title">Keine Akku-Beschränkung</string>
+    <string name="setup_battery_text">Sonst hält Android Verweil im Hintergrund an.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_account">Konto</string>
+    <string name="settings_api_key_account">Mit API-Schlüssel verbunden</string>
+    <string name="settings_device_name">Gerätename</string>
+    <string name="settings_device_name_detail">Unter diesem Namen zeigt Dawarich die Punkte von diesem Telefon. Leer lassen für den Modellnamen.</string>
+    <string name="settings_headers">Proxy-Header</string>
+    <string name="settings_headers_none">Keine</string>
+    <string name="settings_tracking">Tracking</string>
+    <string name="settings_place_names">Ortsnamen anzeigen</string>
+    <string name="settings_place_names_detail">Benennt Aufenthalte in der Timeline. Der Geocoder des Telefons, meist der von Google, erhält dafür ihre Koordinaten.</string>
+    <string name="settings_reliability">Tracking stoppt trotzdem?</string>
+    <string name="settings_reliability_detail">Hilfe für Samsung, Xiaomi und andere Telefone, die Hintergrund-Apps beenden</string>
+    <string name="settings_on_this_phone">Auf diesem Telefon</string>
+    <string name="settings_forget_places">Bekannte Orte vergessen</string>
+    <plurals name="settings_known_places">
+        <item quantity="one">%d Ort, am WLAN erkannt</item>
+        <item quantity="other">%d Orte, am WLAN erkannt</item>
+    </plurals>
+    <string name="settings_clear_timeline">Timeline löschen</string>
+    <string name="settings_clear_timeline_detail">Die letzten 30 Tage auf diesem Telefon. In Dawarich bleibt alles.</string>
+    <string name="settings_record_raw">Sensor-Rohdaten aufzeichnen</string>
+    <string name="settings_record_raw_detail">Zum Abstimmen von Verweil mit Replays. Enthält, wo du wohnst; wird nach 30 Tagen gelöscht.</string>
+    <string name="settings_diagnostics_detail">Engine-Zustand, Sensoren, Upload-Warteschlange, Aufzeichnungen</string>
+    <string name="settings_about">Über Verweil</string>
+    <string name="settings_version">Verweil %1$s</string>
+    <string name="settings_about_detail">Open Source. Schrift: Bricolage Grotesque, SIL Open Font License.</string>
+    <string name="settings_source">Quellcode</string>
+
+    <string name="sign_out_title">Abmelden?</string>
+    <string name="sign_out_text">Das Tracking endet und Verweil vergisst den Zugang zu %1$s.</string>
+    <plurals name="sign_out_discard">
+        <item quantity="one">%d noch nicht gesendeten Eintrag löschen</item>
+        <item quantity="other">%d noch nicht gesendete Einträge löschen</item>
+    </plurals>
+    <string name="sign_out_discard_no">Sie gehen an das nächste Konto, mit dem du dich anmeldest.</string>
+    <string name="sign_out_discard_yes">Sie sind dann endgültig weg.</string>
+    <string name="forget_places_text">Verweil lernt Orte bei deinen nächsten Aufenthalten neu. Bereits gesendete Aufenthalte bleiben in Dawarich.</string>
+    <string name="clear_timeline_text">Löscht die Timeline auf diesem Telefon. In Dawarich bleibt alles, was schon gesendet ist.</string>
+
+    <!-- Diagnostics -->
+    <string name="diagnostics_title">Diagnose</string>
+    <string name="diagnostics_engine">Engine</string>
+    <string name="diagnostics_running">Dienst läuft</string>
+    <string name="diagnostics_mode">Modus</string>
+    <string name="diagnostics_activity">Aktivität</string>
+    <string name="diagnostics_profile">Standortprofil</string>
+    <string name="diagnostics_geofence">Geofence</string>
+    <string name="diagnostics_segment">Letzter Abschnitt</string>
+    <string name="diagnostics_position">Position</string>
+    <string name="diagnostics_sensors">Sensoren</string>
+    <string name="diagnostics_location_enabled">Standort an</string>
+    <string name="diagnostics_location_available">Standort verfügbar</string>
+    <string name="diagnostics_last_fix">Letzter Fix</string>
+    <string name="diagnostics_last_wifi">Letzter WLAN-Scan</string>
+    <plurals name="diagnostics_wifi_value">
+        <item quantity="one">%1$s, %2$d Zugangspunkt</item>
+        <item quantity="other">%1$s, %2$d Zugangspunkte</item>
+    </plurals>
+    <string name="diagnostics_known_places">Bekannte Orte</string>
+    <string name="diagnostics_last_event">Letztes Ereignis</string>
+    <string name="diagnostics_queue">Upload-Warteschlange</string>
+    <string name="diagnostics_pending">Wartend</string>
+    <string name="diagnostics_rejected">Abgelehnt</string>
+    <string name="diagnostics_last_error">Letzter Fehler</string>
+    <string name="diagnostics_recordings">Aufzeichnungen</string>
+    <plurals name="diagnostics_recordings_detail">
+        <item quantity="one">Sensor-Rohdaten pro Tag, für Replays am Computer. Werden %1$d Tag aufbewahrt.</item>
+        <item quantity="other">Sensor-Rohdaten pro Tag, für Replays am Computer. Werden %1$d Tage aufbewahrt.</item>
+    </plurals>
+    <string name="diagnostics_yes">ja</string>
+    <string name="diagnostics_no">nein</string>
+    <string name="delete_recordings_title">Alle Aufzeichnungen löschen?</string>
+    <string name="delete_recordings_text">Replays dieser Tage sind danach nicht mehr möglich.</string>
+
+    <!-- Sign-in -->
+    <string name="login_tagline">Verweil unterscheidet Bleiben von Bewegen und schickt deinem Dawarich saubere Wege statt Zickzack aus dem Büro.</string>
+    <string name="login_cloud">Dawarich Cloud</string>
+    <string name="login_cloud_detail">Dein Konto auf dawarich.app.</string>
+    <string name="login_with_email">Mit E-Mail anmelden</string>
+    <string name="login_sign_up">Noch kein Konto? Auf dawarich.app registrieren</string>
+    <string name="login_self_hosted">Eigener Server</string>
+    <string name="login_self_hosted_detail">Eine Dawarich-Instanz, die du selbst betreibst.</string>
+    <string name="login_connect_own">Eigenes Dawarich verbinden</string>
+    <string name="login_cloud_title">Bei Dawarich Cloud anmelden</string>
+    <string name="login_email">E-Mail</string>
+    <string name="login_password">Passwort</string>
+    <string name="login_sign_in">Anmelden</string>
+    <string name="login_signing_in">Anmelden…</string>
+    <string name="login_forgot_password">Passwort vergessen?</string>
+    <string name="login_2fa_title">Zwei-Faktor-Authentifizierung</string>
+    <string name="login_2fa_text">Gib den Code aus deiner Authenticator-App ein oder einen deiner Backup-Codes.</string>
+    <string name="login_code">Code</string>
+    <string name="login_verify">Bestätigen</string>
+    <string name="login_verifying">Bestätigen…</string>
+    <string name="login_self_hosted_title">Eigenes Dawarich verbinden</string>
+    <string name="login_self_hosted_text">Öffne Dawarich im Browser und geh zu Account → API access. Dort findest du einen QR-Code, die Server-URL und deinen API-Schlüssel.</string>
+    <string name="login_scan">QR-Code scannen</string>
+    <string name="login_connecting">Verbinden…</string>
+    <string name="login_manual">Manuell einrichten</string>
+    <string name="login_server_url">Server-URL</string>
+    <string name="login_insecure">Diese URL nutzt einfaches HTTP: API-Schlüssel und Standorte gehen unverschlüsselt übers Netz. Nutze HTTPS, wenn du kannst.</string>
+    <string name="login_api_key">API-Schlüssel</string>
+    <string name="login_headers">Eigene Header (optional)</string>
+    <string name="login_headers_hint">Ein „Name: Wert“ pro Zeile, für Reverse-Proxys wie Cloudflare Access oder Pangolin.</string>
+    <string name="login_connect">Verbinden</string>
+    <string name="login_not_a_dawarich_code">Das ist kein Dawarich-QR-Code. Scanne den unter Account → API access.</string>
+    <string name="login_unreachable">Server nicht erreichbar. Prüfe die Adresse und deine Verbindung. (%1$s)</string>
+
+    <!-- Notifications -->
+    <string name="channel_tracking">Tracking</string>
+    <string name="channel_tracking_description">Wird angezeigt, solange Verweil deinen Standort aufzeichnet.</string>
+    <string name="channel_alerts">Probleme</string>
+    <string name="channel_alerts_description">Wenn das Tracking unterbrochen wurde oder Dawarich den Zugang ablehnt.</string>
+    <string name="notification_starting">Verweil startet</string>
+    <string name="notification_staying_since">Vor Ort seit %1$s</string>
+    <string name="notification_location_off">Standort ist aus</string>
+    <string name="notification_tracking_text">Verweil zeichnet deinen Standort auf</string>
+    <string name="notification_interrupted_title">Tracking unterbrochen</string>
+    <string name="interrupted_no_location">Verweil hat keinen Zugriff mehr auf deinen Standort. Öffne Verweil, um ihn zu erlauben.</string>
+    <string name="interrupted_no_background">Android hat Verweil beendet, und ohne „Immer zulassen“ kann es nicht neu starten. Öffne Verweil, um weiterzumachen.</string>
+    <string name="interrupted_start_refused">Android hat Verweil keinen Neustart im Hintergrund erlaubt. Öffne Verweil, um weiterzumachen.</string>
+    <string name="notification_upload_refused_title">Dawarich lehnt den API-Schlüssel ab</string>
+    <string name="notification_upload_refused_text">Neue Standorte warten auf diesem Telefon. Öffne Verweil und melde dich neu an.</string>
+
+    <!-- Units -->
+    <string name="duration_under_minute">unter einer Minute</string>
+    <string name="duration_minutes">%1$d Min.</string>
+    <string name="duration_hours">%1$d Std.</string>
+    <string name="duration_hours_minutes">%1$d Std. %2$d Min.</string>
+    <string name="distance_meters">%1$d m</string>
+    <string name="distance_kilometers">%1$s km</string>
+</resources>
