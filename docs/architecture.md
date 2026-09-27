@@ -21,7 +21,7 @@ That keeps the engine testable on a desktop JVM and identical on both platforms.
 | `model` | `SensorEvent` (`Fix`, `ActivityChange`, `WifiScan`, `GeofenceExit`, `Tick`) and `EngineOutput` (`TrackPoint`, `StayStarted`, `StayHeartbeat`, `StayEnded`) |
 | `engine` | `StayEngine`, the stay/move state machine; `EngineState`, its serializable memory; `EngineConfig` with its thresholds |
 | `place` | Wi-Fi fingerprints and `PlaceMemory`, which recognises known places and learns from every stay; stored in SQLite or in memory for replays |
-| `track` | `TrackSmoother`, a constant-velocity Kalman filter with Doppler velocity, and `TrackSimplifier`, streaming Douglas–Peucker; both part of `EngineState` |
+| `track` | `TrackSimplifier`, streaming Douglas–Peucker, and `TrackSmoother`, a constant-velocity Kalman filter with Doppler velocity (off by default, for replays); both part of `EngineState` |
 | `tracking` | `Tracker`: the engine with a memory. Restores the saved state and stores it with the uploads of a step in one transaction; steps without uploads save on mode changes or every 30 s |
 | `geo` | Distance and accuracy-weighted median |
 | `upload` | Mapping engine output to Dawarich items; `Outbox`, the persistent upload queue, which sets aside data the server refuses |

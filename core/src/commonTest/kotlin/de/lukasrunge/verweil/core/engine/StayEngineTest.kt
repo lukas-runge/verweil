@@ -60,7 +60,7 @@ class StayEngineTest {
         }
 
         val everyFix = walk(EngineConfig(smoothTrack = false, simplifyToleranceM = null, minPointSpacingM = 0.0))
-        val smoothed = walk(EngineConfig())
+        val smoothed = walk(EngineConfig(smoothTrack = true))
 
         assertTrue(everyFix > 420 * 1.3, "the jitter alone adds distance, got $everyFix m")
         assertTrue(smoothed in 400.0..440.0, "walked 420 m, got $smoothed m")

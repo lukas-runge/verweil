@@ -18,8 +18,12 @@ data class EngineConfig(
     val minStay: Duration = 5.minutes,
     val leaveTimeout: Duration = 3.minutes,
     val exitFixesWithoutMotion: Int = 2,
-    /** Kalman-smooth track fixes with their Doppler velocity before thinning them. */
-    val smoothTrack: Boolean = true,
+    /**
+     * Kalman-smooth track fixes with their Doppler velocity before thinning them. Off: on a recorded walk
+     * with fixes every second it moved the track away from the path walked, since the fused provider already
+     * filters its fixes and the remaining error is an offset over many seconds. Kept for replays.
+     */
+    val smoothTrack: Boolean = false,
     /** How freely the smoother lets the velocity change, in m²/s³; higher follows turns faster but keeps more jitter. */
     val smoothingAccelerationNoise: Double = 1.0,
     /** A longer silence between track fixes starts the smoother afresh. */

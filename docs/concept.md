@@ -131,14 +131,17 @@ and at most the last 30 s of fixes are missing.
 
 - Drop fixes with accuracy worse than `A_good`.
 - Drop fixes whose implied speed from the last accepted fix is implausible for the current activity.
-- Smooth with a constant-velocity Kalman filter per axis. Positions are off by metres and jitter from fix to fix,
-  but the Doppler speed and bearing of a fix are good to a fraction of a metre per second.
-  The velocity carries the track along the path, and the jitter averages out without cutting corners.
-  An offset that stays the same for many fixes, e.g. from reflections off buildings, remains.
+- Optionally smooth with a constant-velocity Kalman filter per axis that uses the Doppler speed and bearing
+  of each fix. **Off by default:** on a walk around a block with a fix every second (accuracy 4.5 m),
+  measured against the route actually walked, every setting of it moved the track further from the path
+  than the raw fixes (mean offset 3.0–3.9 m against 2.9 m); with the Doppler velocity it got worse, not better.
+  The fused provider already filters its fixes, and what is left is an offset over many seconds,
+  e.g. up to 15 m at one corner, which no filter can tell from walking. It stays available for replays.
   A gap longer than `T_gap` starts the filter afresh, and so does every departure.
 - Simplify: keep the points that shape the track and drop those within `D_simplify` of the line between them
   (streaming Douglas–Peucker, "opening window"), with at most `T_point` between two points.
-  Simplifying raw fixes would keep every jitter spike as a corner, so it only runs on the smoothed track.
+  On jittery fixes it would keep every spike as a corner; the fixes every second from the fused provider
+  are smooth enough (12 points for the block, 3.0 m mean offset, against 16 points and 2.7 m with `D_min`).
   The newest point is released when the track pauses (SETTLING) or tracking stops.
 - The state machine still decides on the raw fixes; smoothing only shapes the track.
 
@@ -156,7 +159,7 @@ These are starting values, to be tuned by replay:
 | `T_stay` | 5 min | Minimum stay duration |
 | `T_leave` | 3 min | Time to confirm a departure |
 | `N_exit` | 2 | Consecutive good fixes outside `R_exit` without motion |
-| `Q_accel` | 1 m²/s³ | How freely the smoother lets the velocity change |
+| `Q_accel` | 1 m²/s³ | How freely the smoother lets the velocity change (smoothing is off by default) |
 | `T_gap` | 30 s | Silence after which the smoother starts afresh |
 | `D_simplify` | 3 m | Track points closer than this to the line between their neighbours are dropped |
 | `T_point` | 30 s | Longest time between two track points |
@@ -213,18 +216,19 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 - **Record:** a debug recorder writes every raw event of a day to a JSONL log.
   BSSIDs are hashed before they are written.
 - **Replay:** `./gradlew :core:replay --args="day.jsonl --from 13:30 --to 13:40 --truth route.geojson"`
-  runs a log through variants of the track pipeline: raw fixes, spacing by `D_min` (as before, also thinned to
-  one fix per 5 s), simplified only, smoothed only, and smoothed and simplified (at 1 s and 5 s).
-  It writes one GeoJSON per variant plus `all.geojson` into `replay-out/` and prints points, length,
-  the Doppler distance as a reference and, given the route actually walked as a LineString (`--truth`),
-  each variant's mean, 95th percentile and maximum offset from it.
+  runs a log through variants of the track pipeline: raw fixes, spacing by `D_min` (at 1 s and thinned to
+  one fix per 5 s, as before), simplified (at 1 s and 5 s), smoothed, and smoothed and simplified; `*` marks
+  what the app uploads. It writes one GeoJSON per variant plus `all.geojson` into `replay-out/` and prints
+  points, length, the Doppler distance and, given the route actually walked as a LineString (`--truth`,
+  e.g. drawn on geojson.io), each variant's mean, 95th percentile and maximum offset from it.
 - **Regression:** labelled real days become tests. For example,
   "office 09:00–17:00, then walked home" must produce exactly one stay and about 2.1 km.
 
 ## Battery strategy
 
 - **MOVING** (also SETTLING and LEAVING): high-accuracy location every second. GNSS runs continuously
-  at this accuracy anyway; the shorter interval costs wake-ups and gives the smoother enough fixes.
+  at this accuracy anyway; the shorter interval costs wake-ups. On the first measured walk it did not make
+  the track more accurate than one fix per 5 s; it stays while recordings of more walks and rides decide.
 - **STAYING:** balanced location every 5 minutes, plus fixes other apps request, at most one per minute.
   Wake-ups come from activity transitions and a geofence around the anchor with radius `R_exit`.
   Without the geofence (no "Allow all the time", location off) it falls back to every 60 s.

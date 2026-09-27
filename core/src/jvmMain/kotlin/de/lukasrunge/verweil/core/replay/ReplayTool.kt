@@ -50,23 +50,26 @@ fun main(args: Array<String>) {
     val truth = options["truth"]?.let { readLine(File(it)) }
     val out = File(options["out"] ?: "replay-out").apply { mkdirs() }
 
-    val default = EngineConfig()
-    val spacing = default.copy(smoothTrack = false, simplifyToleranceM = null)
+    val app = EngineConfig()
+    val spacing = app.copy(smoothTrack = false, simplifyToleranceM = null)
+    val simplified = app.copy(smoothTrack = false, simplifyToleranceM = app.simplifyToleranceM ?: 3.0)
+    val smoothed = app.copy(smoothTrack = true, simplifyToleranceM = null, minPointSpacingM = 0.0)
+    val smoothedSimplified = simplified.copy(smoothTrack = true)
     val variants = listOf(
-        Variant("raw", "#999999") { raw(events, default) },
+        Variant("raw", "#999999") { raw(events, app) },
         Variant("before-5s-spacing", "#e41a1c") { engine(everyFiveSeconds(events), spacing) },
         Variant("spacing", "#ff7f00") { engine(events, spacing) },
-        Variant("simplified", "#984ea3") { engine(events, default.copy(smoothTrack = false)) },
-        Variant("smoothed", "#4daf4a") { engine(events, default.copy(simplifyToleranceM = null, minPointSpacingM = 0.0)) },
-        Variant("smoothed-simplified-5s", "#a6cee3") { engine(everyFiveSeconds(events), default) },
-        Variant("smoothed-simplified", "#377eb8") { engine(events, default) },
+        Variant("simplified-5s", "#fb9a99") { engine(everyFiveSeconds(events), simplified) },
+        Variant("simplified", "#984ea3", isApp = simplified == app) { engine(events, simplified) },
+        Variant("smoothed", "#4daf4a") { engine(events, smoothed) },
+        Variant("smoothed-simplified", "#377eb8", isApp = smoothedSimplified == app) { engine(events, smoothedSimplified) },
     )
 
     val doppler = dopplerDistance(events.filterIsInstance<Fix>().filter { it.timeMs in window })
     println("Window ${Instant.ofEpochMilli(maxOf(window.first, events.first().timeMs)).atZone(zone).toLocalTime()}" +
         "–${Instant.ofEpochMilli(minOf(window.last, events.last().timeMs)).atZone(zone).toLocalTime()}, " +
         "Doppler distance ${"%.0f".format(doppler)} m" + (truth?.let { ", truth ${"%.0f".format(length(it))} m" } ?: ""))
-    println("%-24s %7s %9s %11s %11s %9s".format("variant", "points", "length", "mean off", "p95 off", "max off"))
+    println("%-24s %7s %9s %11s %11s %9s".format("variant (* app)", "points", "length", "mean off", "p95 off", "max off"))
 
     val all = mutableListOf<JsonElement>()
     for (variant in variants) {
@@ -74,7 +77,7 @@ fun main(args: Array<String>) {
         val offsets = truth?.let { line -> densify(points.map { it.point }).map { offsetFrom(line, it) }.sorted() }
         println(
             "%-24s %7d %8.0fm %11s %11s %9s".format(
-                variant.name,
+                variant.name + if (variant.isApp) " *" else "",
                 points.size,
                 length(points.map { it.point }),
                 offsets?.let { "%.1fm".format(it.average()) } ?: "-",
@@ -91,7 +94,7 @@ fun main(args: Array<String>) {
     println("GeoJSON in ${out.absolutePath}")
 }
 
-private class Variant(val name: String, val color: String, val run: () -> List<Point>)
+private class Variant(val name: String, val color: String, val isApp: Boolean = false, val run: () -> List<Point>)
 
 private data class Point(val timeMs: Long, val point: GeoPoint, val accuracy: Double?)
 
