@@ -3,7 +3,6 @@ package de.lukasrunge.verweil.core.dawarich
 import de.lukasrunge.verweil.core.upload.PointItem
 import de.lukasrunge.verweil.core.upload.VisitItem
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -12,8 +11,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import kotlin.time.Instant
 
 class DawarichException(message: String) : Exception(message)
@@ -21,20 +18,18 @@ class DawarichException(message: String) : Exception(message)
 /**
  * Talks to existing Dawarich APIs, so no server changes are needed:
  * track points through the Overland batch endpoint, stays through the visits API.
+ * [customHeaders] go along with every request, for servers behind an authenticating reverse proxy.
  */
 class DawarichClient(
     baseUrl: String,
     private val apiKey: String,
     private val deviceId: String,
     engine: HttpClient,
+    customHeaders: Map<String, String> = emptyMap(),
 ) {
     private val baseUrl = baseUrl.trimEnd('/')
 
-    private val http = engine.config {
-        install(ContentNegotiation) {
-            json(Json { encodeDefaults = true; explicitNulls = false })
-        }
-    }
+    private val http = engine.dawarichConfig(customHeaders)
 
     suspend fun sendPoints(points: List<PointItem>) {
         if (points.isEmpty()) return

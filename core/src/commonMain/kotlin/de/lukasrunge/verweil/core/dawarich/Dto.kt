@@ -47,3 +47,44 @@ internal data class VisitBody(
     val name: String = "Suggested place",
     val status: String = "suggested",
 )
+
+// Mobile auth API: app/controllers/api/v1/auth/{sessions,otp_challenges,base}_controller.rb.
+
+@Serializable
+internal data class LoginRequest(val email: String, val password: String)
+
+@Serializable
+internal data class OtpRequest(
+    @SerialName("challenge_token") val challengeToken: String,
+    @SerialName("otp_code") val otpCode: String,
+)
+
+@Serializable
+internal data class AuthSuccess(
+    val email: String,
+    @SerialName("api_key") val apiKey: String,
+)
+
+@Serializable
+internal data class OtpChallenge(
+    @SerialName("challenge_token") val challengeToken: String,
+    val ttl: Int = 300,
+)
+
+@Serializable
+internal data class AuthError(val message: String? = null)
+
+// GET /api/v1/users/me: app/serializers/api/user_serializer.rb.
+
+@Serializable
+internal data class MeResponse(val user: MeUser)
+
+@Serializable
+internal data class MeUser(val email: String)
+
+/** Content of the QR code in Dawarich under Account → API access. */
+@Serializable
+data class ConnectionCode(
+    @SerialName("server_url") val serverUrl: String,
+    @SerialName("api_key") val apiKey: String,
+)
