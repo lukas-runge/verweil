@@ -47,7 +47,8 @@ import kotlinx.coroutines.withContext
 
 /** How precisely and how often to ask for location. */
 private enum class LocationProfile(val priority: Int, val intervalMs: Long, val minIntervalMs: Long) {
-    MOVING(Priority.PRIORITY_HIGH_ACCURACY, 5_000, 5_000),
+    /** Every second: the track smoother needs many fixes, and GNSS is running anyway. */
+    MOVING(Priority.PRIORITY_HIGH_ACCURACY, 1_000, 1_000),
 
     /** Without a geofence, regular fixes are the only way to notice a departure without motion. */
     STAYING(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 60_000, 60_000),
@@ -297,4 +298,7 @@ private fun Location.toFix() = Fix(
     accuracy = if (hasAccuracy()) accuracy.toDouble() else Double.MAX_VALUE,
     speed = if (hasSpeed()) speed.toDouble() else null,
     altitude = if (hasAltitude()) altitude else null,
+    bearing = if (hasBearing()) bearing.toDouble() else null,
+    speedAccuracy = if (hasSpeedAccuracy()) speedAccuracyMetersPerSecond.toDouble() else null,
+    bearingAccuracy = if (hasBearingAccuracy()) bearingAccuracyDegrees.toDouble() else null,
 )
