@@ -2,6 +2,7 @@ package de.lukasrunge.verweil.core.engine
 
 import de.lukasrunge.verweil.core.geo.distanceMeters
 import de.lukasrunge.verweil.core.model.Activity
+import de.lukasrunge.verweil.core.model.ActivityChange
 import de.lukasrunge.verweil.core.model.StayEnded
 import de.lukasrunge.verweil.core.model.StayHeartbeat
 import de.lukasrunge.verweil.core.model.StayStarted
@@ -168,6 +169,21 @@ class StayEngineTest {
         assertEquals(lastFix, ended.untilMs)
         assertEquals(Mode.MOVING, engine.mode)
         assertNull(engine.stayAnchor)
+    }
+
+    @Test
+    fun aLateStaleEventDoesNotShortenTheStay() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        val stillSince = s.nowMs
+        stayAt(s, eastM = 0.0, minutes = 30)
+        val lastFix = s.nowMs
+        // Play Services repeats the current activity with its original time when transitions are registered again.
+        s.events += ActivityChange(stillSince, Activity.STILL)
+        val engine = StayEngine()
+        s.run(engine)
+
+        assertEquals(lastFix, engine.finish().filterIsInstance<StayEnded>().single().untilMs)
     }
 
     @Test

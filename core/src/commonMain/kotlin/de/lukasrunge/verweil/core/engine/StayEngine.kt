@@ -150,7 +150,7 @@ class StayEngine(
                 if (fix.isGood() && !inside) {
                     startLeaving(fix.timeMs, fix, out)
                 } else if (inside && fix.accuracy <= config.anchorAccuracyM) {
-                    s.lastPresenceMs = fix.timeMs
+                    present(fix.timeMs)
                     rememberStayFix(fix)
                 }
             }
@@ -165,7 +165,7 @@ class StayEngine(
                     s.exitFixes.clear()
                     s.leavingTrack += fix
                 } else {
-                    s.lastPresenceMs = fix.timeMs
+                    present(fix.timeMs)
                     rememberStayFix(fix)
                     backToStaying()
                 }
@@ -184,7 +184,7 @@ class StayEngine(
             Mode.SETTLING -> Unit
             Mode.STAYING -> when {
                 s.activity.isMoving -> startLeaving(event.timeMs, null, out)
-                s.activity == Activity.STILL -> s.lastPresenceMs = event.timeMs
+                s.activity == Activity.STILL -> present(event.timeMs)
                 else -> Unit
             }
 
@@ -209,7 +209,7 @@ class StayEngine(
                     startLeaving(scan.timeMs, null, out)
                 } else {
                     s.wifi.add(scan.bssids)
-                    s.lastPresenceMs = scan.timeMs
+                    present(scan.timeMs)
                 }
             }
 
@@ -316,6 +316,11 @@ class StayEngine(
         val measured = if (evidence.isEmpty()) anchor else weightedMedian(evidence)
         val place = s.wifi.fingerprint(config.minWifiScans)?.let { places.learn(measured, it) }
         out += StayEnded(anchor, s.staySinceMs, s.lastPresenceMs, center = place?.anchor ?: measured)
+    }
+
+    /** Presence only moves forward: platforms may deliver a stale event late, e.g. the last activity on restart. */
+    private fun present(timeMs: Long) {
+        s.lastPresenceMs = maxOf(s.lastPresenceMs, timeMs)
     }
 
     private fun rememberStayFix(fix: Fix) {

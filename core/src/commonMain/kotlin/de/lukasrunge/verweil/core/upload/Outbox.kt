@@ -47,8 +47,11 @@ class Outbox(database: VerweilDatabase) {
      * Data the server refuses (a 4xx other than auth or rate limiting) is set aside with its error,
      * so it cannot block the queue. Any other failure stops the flush and leaves the rest queued,
      * so the caller can simply retry later.
+     *
+     * Returns how many points and visits Dawarich accepted.
      */
-    suspend fun flush(client: DawarichClient, batchSize: Long = 500) {
+    suspend fun flush(client: DawarichClient, batchSize: Long = 500): Int {
+        var sent = 0
         while (true) {
             val batch = queries.oldestPoints(batchSize).executeAsList()
             if (batch.isEmpty()) break
@@ -58,6 +61,7 @@ class Outbox(database: VerweilDatabase) {
                     batch.map { PointItem(it.time_ms, it.lat, it.lon, it.accuracy, it.speed, it.altitude, it.motion) },
                 )
                 queries.deletePoints(ids)
+                sent += ids.size
             } catch (e: DawarichException) {
                 if (!e.rejectsData) throw e
                 queries.rejectPoints(e.message, ids)
@@ -68,11 +72,13 @@ class Outbox(database: VerweilDatabase) {
             try {
                 client.createVisit(VisitItem(visit.lat, visit.lon, visit.started_ms, visit.ended_ms))
                 queries.deleteVisit(visit.id)
+                sent++
             } catch (e: DawarichException) {
                 if (!e.rejectsData) throw e
                 queries.rejectVisit(e.message, visit.id)
             }
         }
+        return sent
     }
 }
 

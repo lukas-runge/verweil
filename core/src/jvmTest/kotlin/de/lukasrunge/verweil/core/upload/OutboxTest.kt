@@ -44,8 +44,7 @@ class OutboxTest {
         outbox.add(listOf(VisitItem(lat = 52.0, lon = 13.0, startedMs = 0, endedMs = 4)))
         val (client, paths) = client()
 
-        outbox.flush(client, batchSize = 2)
-
+        assertEquals(6, outbox.flush(client, batchSize = 2))
         assertEquals(
             listOf(
                 "/api/v1/overland/batches",
@@ -74,8 +73,7 @@ class OutboxTest {
         outbox.add(listOf(VisitItem(lat = 52.0, lon = 13.0, startedMs = 0, endedMs = 4)))
         val (client, paths) = client(HttpStatusCode.UnprocessableEntity, HttpStatusCode.Created, HttpStatusCode.Created)
 
-        outbox.flush(client, batchSize = 2)
-
+        assertEquals(3, outbox.flush(client, batchSize = 2))
         assertEquals(3, paths.size)
         val counts = outbox.counts()
         assertEquals(0, counts.pending)
