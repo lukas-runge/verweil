@@ -35,7 +35,9 @@ import kotlin.math.hypot
  *
  * ./gradlew :core:replay --args="recording.jsonl [--from 13:30] [--to 13:40] [--truth route.geojson] [--out dir]"
  *
- * The truth is the route actually walked, drawn as a LineString; with it, each variant gets its offset from it.
+ * The truth is the route actually walked, drawn as a LineString. With it, each variant gets three measures:
+ * how far the track strays from the route ("off"), how well it covers the route ("cover"; a cut corner
+ * lies close to the route but leaves the corner uncovered) and how far each corner of the route is from it.
  */
 fun main(args: Array<String>) {
     val options = parseOptions(args.toList())
@@ -65,24 +67,27 @@ fun main(args: Array<String>) {
         Variant("smoothed-simplified", "#377eb8", isApp = smoothedSimplified == app) { engine(events, smoothedSimplified) },
     )
 
-    val doppler = dopplerDistance(events.filterIsInstance<Fix>().filter { it.timeMs in window })
     println("Window ${Instant.ofEpochMilli(maxOf(window.first, events.first().timeMs)).atZone(zone).toLocalTime()}" +
-        "–${Instant.ofEpochMilli(minOf(window.last, events.last().timeMs)).atZone(zone).toLocalTime()}, " +
-        "Doppler distance ${"%.0f".format(doppler)} m" + (truth?.let { ", truth ${"%.0f".format(length(it))} m" } ?: ""))
-    println("%-24s %7s %9s %11s %11s %9s".format("variant (* app)", "points", "length", "mean off", "p95 off", "max off"))
+        "–${Instant.ofEpochMilli(minOf(window.last, events.last().timeMs)).atZone(zone).toLocalTime()}" +
+        (truth?.let { ", truth ${"%.0f".format(length(it))} m with ${corners(it).size} corners" } ?: ""))
+    println("Metres, mean/p95: off = track to route, cover = route to track, corners = route corners to track (mean/max)")
+    println("%-24s %6s %7s %13s %13s %13s".format("variant (* app)", "points", "length", "off", "cover", "corners"))
 
     val all = mutableListOf<JsonElement>()
     for (variant in variants) {
         val points = variant.run().filter { it.timeMs in window }.sortedBy { it.timeMs }
-        val offsets = truth?.let { line -> densify(points.map { it.point }).map { offsetFrom(line, it) }.sorted() }
+        val track = points.map { it.point }
+        val off = truth?.let { line -> densify(track).map { offsetFrom(line, it) } }
+        val cover = truth?.takeIf { track.size >= 2 }?.let { line -> densify(line).map { offsetFrom(track, it) } }
+        val corners = truth?.takeIf { track.size >= 2 }?.let { line -> corners(line).map { offsetFrom(track, it) } }
         println(
-            "%-24s %7d %8.0fm %11s %11s %9s".format(
+            "%-24s %6d %6.0fm %13s %13s %13s".format(
                 variant.name + if (variant.isApp) " *" else "",
                 points.size,
-                length(points.map { it.point }),
-                offsets?.let { "%.1fm".format(it.average()) } ?: "-",
-                offsets?.let { "%.1fm".format(it[(it.size * 0.95).toInt().coerceAtMost(it.size - 1)]) } ?: "-",
-                offsets?.let { "%.1fm".format(it.last()) } ?: "-",
+                length(track),
+                off?.let(::meanAndP95) ?: "-",
+                cover?.let(::meanAndP95) ?: "-",
+                corners?.let { "%.1f / %.1f".format(it.average(), it.max()) } ?: "-",
             ),
         )
         val features = features(variant, points)
@@ -122,11 +127,13 @@ private fun everyFiveSeconds(events: List<SensorEvent>): List<SensorEvent> {
     }
 }
 
-/** Distance from the Doppler speed; close to the true length of a walk and independent of position jitter. */
-private fun dopplerDistance(fixes: List<Fix>): Double = fixes.zipWithNext { a, b ->
-    val dt = (b.timeMs - a.timeMs) / 1000.0
-    if (dt > 10) 0.0 else (b.speed ?: 0.0) * dt
-}.sum()
+private fun meanAndP95(values: List<Double>): String {
+    val sorted = values.sorted()
+    return "%.1f / %.1f".format(sorted.average(), sorted[(sorted.size * 0.95).toInt().coerceAtMost(sorted.size - 1)])
+}
+
+/** The route's inner vertices: where it turns, as drawn. Start and end are not corners. */
+private fun corners(line: List<GeoPoint>) = line.drop(1).dropLast(1)
 
 private fun length(points: List<GeoPoint>) = points.zipWithNext { a, b -> distanceMeters(a, b) }.sum()
 

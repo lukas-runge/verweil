@@ -141,7 +141,9 @@ and at most the last 30 s of fixes are missing.
 - Simplify: keep the points that shape the track and drop those within `D_simplify` of the line between them
   (streaming Douglas–Peucker, "opening window"), with at most `T_point` between two points.
   On jittery fixes it would keep every spike as a corner; the fixes every second from the fused provider
-  are smooth enough (12 points for the block, 3.0 m mean offset, against 16 points and 2.7 m with `D_min`).
+  are smooth enough. Over three walks around a block (8–12 points each), the corners of the route were
+  on average 3.0 m from the track, against 7.1 m (up to 16.8 m) with `D_min` on fixes every 5 s as before,
+  which cut corners and made one walk 190 m instead of 246 m.
   The newest point is released when the track pauses (SETTLING) or tracking stops.
 - The state machine still decides on the raw fixes; smoothing only shapes the track.
 
@@ -219,16 +221,19 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
   runs a log through variants of the track pipeline: raw fixes, spacing by `D_min` (at 1 s and thinned to
   one fix per 5 s, as before), simplified (at 1 s and 5 s), smoothed, and smoothed and simplified; `*` marks
   what the app uploads. It writes one GeoJSON per variant plus `all.geojson` into `replay-out/` and prints
-  points, length, the Doppler distance and, given the route actually walked as a LineString (`--truth`,
-  e.g. drawn on geojson.io), each variant's mean, 95th percentile and maximum offset from it.
+  points and length and, given the route actually walked as a LineString (`--truth`, e.g. drawn on geojson.io),
+  three measures against it: how far the track strays from the route, how well it covers the route
+  (a cut corner lies close to the route but leaves the corner uncovered), and how far the route's corners are
+  from the track. The first alone rewards cutting corners.
 - **Regression:** labelled real days become tests. For example,
   "office 09:00–17:00, then walked home" must produce exactly one stay and about 2.1 km.
 
 ## Battery strategy
 
 - **MOVING** (also SETTLING and LEAVING): high-accuracy location every second. GNSS runs continuously
-  at this accuracy anyway; the shorter interval costs wake-ups. On the first measured walk it did not make
-  the track more accurate than one fix per 5 s; it stays while recordings of more walks and rides decide.
+  at this accuracy anyway; the shorter interval costs wake-ups. With simplification, the same walks thinned
+  to one fix per 5 s hit the corners about as well (2.7 m against 3.0 m), so the rate is still open; it stays
+  at 1 s while recordings of rides and drives decide, and because 1 s recordings can replay any slower rate.
 - **STAYING:** balanced location every 5 minutes, plus fixes other apps request, at most one per minute.
   Wake-ups come from activity transitions and a geofence around the anchor with radius `R_exit`.
   Without the geofence (no "Allow all the time", location off) it falls back to every 60 s.
