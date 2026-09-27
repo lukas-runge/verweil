@@ -95,7 +95,6 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
     }
 
     var pullRefresh by remember { mutableIntStateOf(0) }
-    var refreshing by remember { mutableStateOf(false) }
 
     val scroll = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
@@ -112,13 +111,11 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
             )
         },
     ) { padding ->
-        // Pulling down loads Dawarich's timeline of the shown day again; nothing is sent.
+        // Pulling down loads Dawarich's timeline of the shown day again; nothing is sent. The indicator goes back
+        // on release, and the timeline shows its loading bar, the same as when the day first loads.
         PullToRefreshBox(
-            isRefreshing = refreshing,
-            onRefresh = {
-                refreshing = true
-                pullRefresh++
-            },
+            isRefreshing = false,
+            onRefresh = { pullRefresh++ },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -140,8 +137,6 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
                     nowMs = nowMs,
                     lastUploadMs = upload.lastSuccessMs,
                     pullRefresh = pullRefresh,
-                    refreshing = refreshing,
-                    onRefreshed = { refreshing = false },
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                 counts?.let { UploadSection(app, settings, it, upload) }

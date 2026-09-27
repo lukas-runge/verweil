@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +28,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,6 +53,7 @@ import de.lukasrunge.verweil.core.timeline.TimelineEntry
 import de.lukasrunge.verweil.core.timeline.mergeTimeline
 import de.lukasrunge.verweil.core.timeline.placeCount
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -69,8 +70,6 @@ fun DaySection(
     nowMs: Long,
     lastUploadMs: Long?,
     pullRefresh: Int,
-    refreshing: Boolean,
-    onRefreshed: () -> Unit,
 ) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
@@ -83,7 +82,7 @@ fun DaySection(
 
     val phone by remember(epochDay) { app.journal.segmentsFlow(startMs, endMs, Dispatchers.IO) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs to pullRefresh, onFetched = onRefreshed)
+    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs to pullRefresh)
     val entries = remember(dawarich.entries, phone) { mergeTimeline(dawarich.entries.orEmpty(), phone) }
 
     // Names for stays only the phone knows; Dawarich names its own.
@@ -131,11 +130,20 @@ fun DaySection(
         }
     }
 
-    // While pulled down, the spinner at the top already says it.
-    if (dawarich.loading && !refreshing) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp))
-    } else {
-        Spacer(Modifier.height(4.dp))
+    // Same height with and without the bar, so the timeline does not jump while loading.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(16.dp)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (dawarich.loading) {
+            LinearProgressIndicator(
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 
     // Places, not stays: the office before and after lunch is one place.
@@ -192,8 +200,7 @@ fun DaySection(
  * to the front and when [refreshKey] changes, e.g. after an upload, so today catches up with what was sent.
  */
 @Composable
-private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, refreshKey: Any?, onFetched: () -> Unit): DawarichDay {
-    val fetched by rememberUpdatedState(onFetched)
+private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, refreshKey: Any?): DawarichDay {
     val source = remember { DawarichTimeline(app) }
     var state by remember(startMs) { mutableStateOf(DawarichDay(entries = null, fetchedMs = null, loading = true, problem = null)) }
     var resumed by remember { mutableLongStateOf(0L) }
@@ -207,15 +214,16 @@ private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, ref
             source.cached(startMs)?.let { state = DawarichDay(it.entries, it.fetchedMs, loading = true, problem = null) }
         }
         state = state.copy(loading = true)
-        try {
-            state = source.fetch(startMs, endMs)
-        } finally {
-            // Also when a newer fetch replaces this one, so the pull-down spinner never hangs.
-            fetched()
-        }
+        val started = System.currentTimeMillis()
+        val fresh = source.fetch(startMs, endMs)
+        // A nearby server answers in a few milliseconds; the loading bar should still be seen.
+        delay(MIN_LOADING_MS - (System.currentTimeMillis() - started))
+        state = fresh
     }
     return state
 }
+
+private const val MIN_LOADING_MS = 800L
 
 @Composable
 private fun problemText(problem: TimelineProblem, fetchedMs: Long?): String {
