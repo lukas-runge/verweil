@@ -20,8 +20,15 @@ data class Fix(
     val lon: Double,
     /** Horizontal accuracy radius in metres (68 % confidence). */
     val accuracy: Double,
+    /** Metres per second, from the Doppler shift; far more precise than the change in position. */
     val speed: Double? = null,
     val altitude: Double? = null,
+    /** Direction of travel in degrees clockwise from north. */
+    val bearing: Double? = null,
+    /** Metres per second (68 % confidence). */
+    val speedAccuracy: Double? = null,
+    /** Degrees (68 % confidence). */
+    val bearingAccuracy: Double? = null,
 ) : SensorEvent {
     val point: GeoPoint get() = GeoPoint(lat, lon)
 }

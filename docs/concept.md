@@ -121,14 +121,31 @@ That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-re
 **Tracking stops:** an open stay ends at its last evidence of presence, buffered track points are released,
 and the next start begins in MOVING.
 
-**Restarts:** the engine's whole state is saved together with the uploads of each step, in one transaction.
-When Android kills the app, it continues where it stopped: an ongoing stay is not lost, nothing is queued twice.
+**Restarts:** the engine's whole state is saved together with the uploads of a step, in one transaction.
+Steps without uploads save it when the mode changes or at least every 30 s; with a fix every second,
+saving each step would rewrite hundreds of buffered fixes per second.
+When Android kills the app, it continues where it stopped: an ongoing stay is not lost, nothing is queued twice,
+and at most the last 30 s of fixes are missing.
 
 ### Moving filters
 
 - Drop fixes with accuracy worse than `A_good`.
 - Drop fixes whose implied speed from the last accepted fix is implausible for the current activity.
-- Forward a point when it is at least `D_min` from the last forwarded point.
+- Optionally smooth with a constant-velocity Kalman filter per axis that uses the Doppler speed and bearing
+  of each fix. **Off by default:** on a walk around a block with a fix every second (accuracy 4.5 m),
+  measured against the route actually walked, every setting of it moved the track further from the path
+  than the raw fixes (mean offset 3.0–3.9 m against 2.9 m); with the Doppler velocity it got worse, not better.
+  The fused provider already filters its fixes, and what is left is an offset over many seconds,
+  e.g. up to 15 m at one corner, which no filter can tell from walking. It stays available for replays.
+  A gap longer than `T_gap` starts the filter afresh, and so does every departure.
+- Simplify: keep the points that shape the track and drop those within `D_simplify` of the line between them
+  (streaming Douglas–Peucker, "opening window"), with at most `T_point` between two points.
+  On jittery fixes it would keep every spike as a corner; the fixes every second from the fused provider
+  are smooth enough. Over three walks around a block (8–12 points each), the corners of the route were
+  on average 3.0 m from the track, against 7.1 m (up to 16.8 m) with `D_min` on fixes every 5 s as before,
+  which cut corners and made one walk 190 m instead of 246 m.
+  The newest point is released when the track pauses (SETTLING) or tracking stops.
+- The state machine still decides on the raw fixes; smoothing only shapes the track.
 
 ### Initial parameters
 
@@ -144,7 +161,11 @@ These are starting values, to be tuned by replay:
 | `T_stay` | 5 min | Minimum stay duration |
 | `T_leave` | 3 min | Time to confirm a departure |
 | `N_exit` | 2 | Consecutive good fixes outside `R_exit` without motion |
-| `D_min` | 15 m | Minimum spacing of forwarded track points |
+| `Q_accel` | 1 m²/s³ | How freely the smoother lets the velocity change (smoothing is off by default) |
+| `T_gap` | 30 s | Silence after which the smoother starts afresh |
+| `D_simplify` | 3 m | Track points closer than this to the line between their neighbours are dropped |
+| `T_point` | 30 s | Longest time between two track points |
+| `D_min` | 15 m | Spacing of track points when simplification is off (as before smoothing) |
 | `S_leave` | 0.3 | Wi-Fi similarity below which the place counts as changed |
 | `T_heartbeat` | 60 min | Interval of anchor points during a stay |
 | `N_wifi` | 2 | Scans a stay needs before its fingerprint counts |
@@ -196,14 +217,23 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 
 - **Record:** a debug recorder writes every raw event of a day to a JSONL log.
   BSSIDs are hashed before they are written.
-- **Replay:** a JVM tool feeds logs through the engine and writes the result as GeoJSON with metrics:
-  total distance, number of stays, and phantom distance on days labelled "stationary".
+- **Replay:** `./gradlew :core:replay --args="day.jsonl --from 13:30 --to 13:40 --truth route.geojson"`
+  runs a log through variants of the track pipeline: raw fixes, spacing by `D_min` (at 1 s and thinned to
+  one fix per 5 s, as before), simplified (at 1 s and 5 s), smoothed, and smoothed and simplified; `*` marks
+  what the app uploads. It writes one GeoJSON per variant plus `all.geojson` into `replay-out/` and prints
+  points and length and, given the route actually walked as a LineString (`--truth`, e.g. drawn on geojson.io),
+  three measures against it: how far the track strays from the route, how well it covers the route
+  (a cut corner lies close to the route but leaves the corner uncovered), and how far the route's corners are
+  from the track. The first alone rewards cutting corners.
 - **Regression:** labelled real days become tests. For example,
   "office 09:00–17:00, then walked home" must produce exactly one stay and about 2.1 km.
 
 ## Battery strategy
 
-- **MOVING:** high-accuracy location every 5 s.
+- **MOVING** (also SETTLING and LEAVING): high-accuracy location every second. GNSS runs continuously
+  at this accuracy anyway; the shorter interval costs wake-ups. With simplification, the same walks thinned
+  to one fix per 5 s hit the corners about as well (2.7 m against 3.0 m), so the rate is still open; it stays
+  at 1 s while recordings of rides and drives decide, and because 1 s recordings can replay any slower rate.
 - **STAYING:** balanced location every 5 minutes, plus fixes other apps request, at most one per minute.
   Wake-ups come from activity transitions and a geofence around the anchor with radius `R_exit`.
   Without the geofence (no "Allow all the time", location off) it falls back to every 60 s.
@@ -214,11 +244,8 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 
 ## Non-goals for v1
 
-- Kalman smoothing of track points. The Fused Location Provider already fuses GNSS, Wi-Fi, cell and inertial sensors,
-  and there is no evidence that Timeline smooths on top of that; it simplifies paths and snaps them to roads instead.
-  Phantom distance comes from stationary jitter, which the state machine handles.
-  Revisit only if recorded days show jagged movement tracks.
-- Map matching. Planned later as optional server-side post-processing with a self-hosted Valhalla (Meili).
+- Map matching. Off roads and paths, e.g. hiking or climbing, there is nothing to snap to,
+  so it could only ever be optional server-side post-processing, e.g. with a self-hosted Valhalla (Meili).
 - Place naming, which Dawarich and its reverse geocoder already do.
 - Any UI beyond status, settings and a debug view. Dawarich is the UI.
 

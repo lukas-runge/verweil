@@ -56,3 +56,14 @@ sqldelight {
         }
     }
 }
+
+// Replays a raw recording through variants of the track pipeline; see "Tuning by replay" in docs/concept.md.
+tasks.register<JavaExec>("replay") {
+    group = "verification"
+    description = "Replays a recording (JSONL) through track pipeline variants and writes GeoJSON"
+    val jvmMain = kotlin.jvm().compilations.getByName("main")
+    classpath(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+    mainClass.set("de.lukasrunge.verweil.core.replay.ReplayToolKt")
+    // Paths in --args are relative to the repository root, where the command runs.
+    workingDir = rootProject.projectDir
+}

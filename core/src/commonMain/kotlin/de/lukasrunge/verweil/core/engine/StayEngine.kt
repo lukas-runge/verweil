@@ -20,6 +20,9 @@ import de.lukasrunge.verweil.core.place.PlaceMemory
 import de.lukasrunge.verweil.core.place.WifiTally
 import de.lukasrunge.verweil.core.place.asFingerprint
 import de.lukasrunge.verweil.core.place.similarity
+import de.lukasrunge.verweil.core.track.TrackSample
+import de.lukasrunge.verweil.core.track.TrackSimplifier
+import de.lukasrunge.verweil.core.track.TrackSmoother
 import kotlinx.serialization.Serializable
 
 enum class Mode { MOVING, SETTLING, STAYING, LEAVING }
@@ -33,10 +36,13 @@ class EngineState(
     var mode: Mode = Mode.MOVING,
     var activity: Activity = Activity.UNKNOWN,
 
-    // Plausibility reference and track spacing.
+    // Plausibility reference.
     var lastAccepted: Fix? = null,
-    var lastForwarded: Fix? = null,
     var implausibleInARow: Int = 0,
+
+    // The movement track: smoothing, then thinning.
+    val smoother: TrackSmoother = TrackSmoother(),
+    val simplifier: TrackSimplifier = TrackSimplifier(),
 
     /** Good fixes of the last settle window while moving; used to detect stays without a STILL signal. */
     val recent: MutableList<Fix> = mutableListOf(),
@@ -103,9 +109,12 @@ class StayEngine(
     fun finish(): List<EngineOutput> {
         val out = mutableListOf<EngineOutput>()
         when (s.mode) {
-            Mode.SETTLING -> s.bufferedTrack.forEach { forwardIfSpaced(it, out) }
+            Mode.SETTLING -> {
+                s.bufferedTrack.forEach { forward(it, out) }
+                flushTrack(out)
+            }
             Mode.STAYING, Mode.LEAVING -> endStay(out)
-            Mode.MOVING -> Unit
+            Mode.MOVING -> flushTrack(out)
         }
         state = EngineState()
         return out
@@ -116,12 +125,12 @@ class StayEngine(
             Mode.MOVING -> {
                 if (!fix.isGood() || !isPlausible(fix)) return
                 s.lastAccepted = fix
-                forwardIfSpaced(fix, out)
+                forward(fix, out)
                 rememberRecent(fix)
                 if (s.activity == Activity.STILL) {
-                    startSettling(fix.timeMs, listOf(fix))
+                    startSettling(fix.timeMs, listOf(fix), out)
                 } else if (recentFormsCluster()) {
-                    startSettling(s.recent.first().timeMs, s.recent.toList())
+                    startSettling(s.recent.first().timeMs, s.recent.toList(), out)
                 }
             }
 
@@ -177,7 +186,7 @@ class StayEngine(
         when (s.mode) {
             Mode.MOVING -> if (s.activity == Activity.STILL) {
                 val seed = s.lastAccepted?.takeIf { event.timeMs - it.timeMs <= config.settleWindow.inWholeMilliseconds }
-                startSettling(event.timeMs, listOfNotNull(seed))
+                startSettling(event.timeMs, listOfNotNull(seed), out)
             }
 
             Mode.SETTLING -> Unit
@@ -240,7 +249,9 @@ class StayEngine(
         }
     }
 
-    private fun startSettling(sinceMs: Long, seed: List<Fix>) {
+    private fun startSettling(sinceMs: Long, seed: List<Fix>, out: MutableList<EngineOutput>) {
+        // The track reaches the last fix before the stop; if the stop turns out short, it continues from there.
+        flushTrack(out)
         s.mode = Mode.SETTLING
         s.settleSinceMs = sinceMs
         s.anchorCandidates.clear()
@@ -254,10 +265,10 @@ class StayEngine(
     /** The candidate was only a short stop: release what was held back and keep moving. */
     private fun abortSettling(trigger: Fix, out: MutableList<EngineOutput>) {
         s.mode = Mode.MOVING
-        s.bufferedTrack.forEach { forwardIfSpaced(it, out) }
+        s.bufferedTrack.forEach { forward(it, out) }
         s.bufferedTrack.clear()
         s.lastAccepted = trigger
-        forwardIfSpaced(trigger, out)
+        forward(trigger, out)
         rememberRecent(trigger)
     }
 
@@ -300,8 +311,9 @@ class StayEngine(
         // The new track starts at the anchor; the stay-ended point already marks it.
         s.mode = Mode.MOVING
         s.anchor = null
-        s.lastForwarded = Fix(s.lastPresenceMs, stayAnchor.lat, stayAnchor.lon, accuracy = 0.0)
-        (s.leavingTrack + s.exitFixes).sortedBy { it.timeMs }.forEach { forwardIfSpaced(it, out) }
+        s.smoother.reset()
+        s.simplifier.startAt(TrackSample(Fix(s.lastPresenceMs, stayAnchor.lat, stayAnchor.lon, accuracy = 0.0), Activity.STILL))
+        (s.leavingTrack + s.exitFixes).sortedBy { it.timeMs }.forEach { forward(it, out) }
         s.lastAccepted = s.exitFixes.last()
         s.exitFixes.clear()
         s.leavingTrack.clear()
@@ -332,12 +344,23 @@ class StayEngine(
         }
     }
 
-    private fun forwardIfSpaced(fix: Fix, out: MutableList<EngineOutput>) {
-        val last = s.lastForwarded
-        if (last == null || distanceMeters(last.point, fix.point) >= config.minPointSpacingM) {
-            out += TrackPoint(fix, s.activity)
-            s.lastForwarded = fix
+    /** Hands an accepted movement fix to the track: smoothed, then thinned to the points that shape it. */
+    private fun forward(fix: Fix, out: MutableList<EngineOutput>) {
+        val sample = if (config.smoothTrack) {
+            s.smoother.update(fix, config.smoothingAccelerationNoise, config.smoothingMaxGap.inWholeMilliseconds) ?: return
+        } else {
+            fix
         }
+        s.simplifier.add(
+            TrackSample(sample, s.activity),
+            config.simplifyToleranceM,
+            config.minPointSpacingM,
+            config.maxTrackPointInterval.inWholeMilliseconds,
+        ).forEach { out += TrackPoint(it.fix, it.activity) }
+    }
+
+    private fun flushTrack(out: MutableList<EngineOutput>) {
+        s.simplifier.flush().forEach { out += TrackPoint(it.fix, it.activity) }
     }
 
     private fun rememberRecent(fix: Fix) {

@@ -9,3 +9,6 @@ captures/
 *.apk
 *.aab
 xcuserdata/
+replay-out/
+# Raw recordings contain where you live.
+*.jsonl

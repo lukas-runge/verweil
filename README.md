@@ -23,7 +23,9 @@ Early prototype.
 | Sign-in: Dawarich Cloud (email, 2FA), self-hosted (QR code, manual setup with proxy headers) | Done, tested against mocks |
 | Raw event recording (JSONL) and replay | Done |
 | Android: foreground service, fused location, activity recognition, Wi-Fi, geofence, resume after reboot, upload worker, status UI | Runs in the emulator; not yet tried on a real phone for a day |
-| Replay tool with GeoJSON and metrics | Planned |
+| Track simplification (streaming Douglas–Peucker), fixes every second while moving | Done with tests; measured on one walk |
+| Track smoothing (Kalman with Doppler velocity) | Done, off: made a measured walk less accurate; kept for replays |
+| Replay tool comparing track pipeline variants as GeoJSON with metrics | Done |
 | iOS app | Planned; `core` already compiles for iOS |
 
 ## Build
