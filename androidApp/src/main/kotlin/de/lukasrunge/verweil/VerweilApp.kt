@@ -8,6 +8,7 @@ import de.lukasrunge.verweil.core.journal.Journal
 import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.SensorEvent
 import de.lukasrunge.verweil.core.place.SqlPlaceStore
+import de.lukasrunge.verweil.core.timeline.TimelineCache
 import de.lukasrunge.verweil.core.upload.Outbox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ class VerweilApp : Application() {
     val outbox: Outbox by lazy { Outbox(database) }
     val journal: Journal by lazy { Journal(database) }
     val places: SqlPlaceStore by lazy { SqlPlaceStore(database) }
+    val timelineCache: TimelineCache by lazy { TimelineCache(database) }
     val settings: Settings by lazy { Settings(this) }
 
     /** For work that must outlive a screen or the service, like saving a setting while stopping. */

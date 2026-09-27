@@ -11,10 +11,12 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import de.lukasrunge.verweil.Notifications
+import de.lukasrunge.verweil.R
 import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.dawarich.DawarichClient
 import de.lukasrunge.verweil.core.dawarich.DawarichException
 import de.lukasrunge.verweil.core.platformHttpClient
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -44,7 +46,8 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 return Result.failure()
             }
             Log.w(TAG, "Upload failed, will retry", e)
-            app.settings.uploadFailed(e.message ?: e.javaClass.simpleName, authRefused = false)
+            val message = if (e is IOException) applicationContext.getString(R.string.upload_unreachable) else e.message ?: e.javaClass.simpleName
+            app.settings.uploadFailed(message, authRefused = false)
             Result.retry()
         } finally {
             http.close()

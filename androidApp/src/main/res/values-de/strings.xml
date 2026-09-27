@@ -33,12 +33,18 @@
     <string name="mode_settling">Angekommen?</string>
     <string name="mode_staying">Vor Ort</string>
     <string name="mode_leaving">Aufbruch?</string>
-    <string name="moving_walking">Zu Fuß</string>
-    <string name="moving_running">Laufen</string>
-    <string name="moving_cycling">Mit dem Rad</string>
-    <string name="moving_vehicle">Mit Auto oder Bahn</string>
-    <string name="moving_unknown">Unterwegs</string>
 
+    <string name="travel_walking">Zu Fuß</string>
+    <string name="travel_running">Laufen</string>
+    <string name="travel_cycling">Mit dem Rad</string>
+    <string name="travel_driving">Mit dem Auto</string>
+    <string name="travel_motorcycle">Mit dem Motorrad</string>
+    <string name="travel_bus">Mit dem Bus</string>
+    <string name="travel_train">Mit der Bahn</string>
+    <string name="travel_flying">Im Flugzeug</string>
+    <string name="travel_boat">Mit dem Schiff</string>
+    <string name="travel_vehicle">Mit Auto oder Bahn</string>
+    <string name="travel_unknown">Unterwegs</string>
     <!-- Main screen -->
     <string name="hero_recording">Zeichnet auf</string>
     <string name="hero_not_recording">Zeichnet nicht auf</string>
@@ -81,19 +87,29 @@
         <item quantity="one">%1$d Ort, %2$s unterwegs</item>
         <item quantity="other">%1$d Orte, %2$s unterwegs</item>
     </plurals>
-    <string name="timeline_empty_today">Heute ist noch nichts aufgezeichnet. Aufenthalte und Wege erscheinen hier, sobald Verweil sie erkennt.</string>
-    <string name="timeline_empty">An diesem Tag ist nichts aufgezeichnet.</string>
+    <string name="timeline_empty_today">Heute ist noch nichts in Dawarich. Aufenthalte und Wege erscheinen hier, sobald Verweil sie erkennt.</string>
+    <string name="timeline_empty">An diesem Tag gibt es in Dawarich keine Aufenthalte und Wege.</string>
+    <string name="action_pick_day">Tag wählen</string>
+    <string name="action_show_day">Anzeigen</string>
+    <string name="action_open_day_in_dawarich">Tag in Dawarich öffnen</string>
+    <string name="timeline_pending">Noch nicht in Dawarich</string>
+    <string name="timeline_stale">Dawarich ist nicht erreichbar; das ist der Stand von %1$s.</string>
+    <string name="timeline_unreachable">Dawarich ist nicht erreichbar. Zu sehen ist, was dieses Telefon erkannt hat.</string>
+    <string name="timeline_refused">Dawarich lehnt den API-Schlüssel ab. Zu sehen ist, was dieses Telefon erkannt hat.</string>
+    <string name="timeline_too_old">Dein Dawarich hat noch keine Timeline; die kam mit Version 1.3. Zu sehen ist, was dieses Telefon erkannt hat.</string>
+    <string name="timeline_empty_phone">Dieses Telefon hat an diesem Tag nichts erkannt.</string>
     <string name="timeline_stay">Aufenthalt</string>
     <string name="timeline_since">Seit %1$s</string>
     <string name="timeline_open_since">Offen seit %1$s</string>
     <string name="timeline_move_detail">%1$s in %2$s</string>
-    <string name="timeline_gap">%1$s nicht aufgezeichnet</string>
+    <string name="timeline_gap">%1$s ohne Daten</string>
 
     <string name="upload_title">Dawarich</string>
     <string name="upload_done">Alles gesendet</string>
     <string name="upload_last">Zuletzt gesendet um %1$s</string>
     <string name="upload_soon">Geht in den nächsten Minuten raus</string>
     <string name="upload_failed">Senden fehlgeschlagen, neuer Versuch folgt: %1$s</string>
+    <string name="upload_unreachable">Dawarich ist nicht erreichbar</string>
     <string name="upload_auth_refused">Wartet, bis du dich neu anmeldest</string>
     <plurals name="upload_waiting">
         <item quantity="one">%d Eintrag wartet</item>
@@ -137,8 +153,8 @@
         <item quantity="one">%d Ort, am WLAN erkannt</item>
         <item quantity="other">%d Orte, am WLAN erkannt</item>
     </plurals>
-    <string name="settings_clear_timeline">Timeline löschen</string>
-    <string name="settings_clear_timeline_detail">Die letzten 30 Tage auf diesem Telefon. In Dawarich bleibt alles.</string>
+    <string name="settings_clear_timeline">Gespeicherte Timeline löschen</string>
+    <string name="settings_clear_timeline_detail">Zwischengespeicherte Tage aus Dawarich und was dieses Telefon erkannt hat. In Dawarich bleibt alles.</string>
     <string name="settings_record_raw">Sensor-Rohdaten aufzeichnen</string>
     <string name="settings_record_raw_detail">Zum Abstimmen von Verweil mit Replays. Enthält, wo du wohnst; wird nach 30 Tagen gelöscht.</string>
     <string name="settings_diagnostics_detail">Engine-Zustand, Sensoren, Upload-Warteschlange, Aufzeichnungen</string>
@@ -156,7 +172,7 @@
     <string name="sign_out_discard_no">Sie gehen an das nächste Konto, mit dem du dich anmeldest.</string>
     <string name="sign_out_discard_yes">Sie sind dann endgültig weg.</string>
     <string name="forget_places_text">Verweil lernt Orte bei deinen nächsten Aufenthalten neu. Bereits gesendete Aufenthalte bleiben in Dawarich.</string>
-    <string name="clear_timeline_text">Löscht die Timeline auf diesem Telefon. In Dawarich bleibt alles, was schon gesendet ist.</string>
+    <string name="clear_timeline_text">Löscht die zwischengespeicherten Tage und was dieses Telefon erkannt hat. In Dawarich bleibt alles; die Tage laden beim nächsten Öffnen neu.</string>
 
     <!-- Diagnostics -->
     <string name="diagnostics_title">Diagnose</string>

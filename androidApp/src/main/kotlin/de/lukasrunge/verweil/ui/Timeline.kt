@@ -44,68 +44,86 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import de.lukasrunge.verweil.R
-import de.lukasrunge.verweil.core.journal.Segment
-import de.lukasrunge.verweil.core.journal.SegmentKind
+import de.lukasrunge.verweil.core.timeline.Source
+import de.lukasrunge.verweil.core.timeline.TimelineEntry
 
 /** Longer between two segments, and the timeline shows that nothing was recorded. */
 private const val GAP_MS = 20 * 60_000L
 
-private sealed interface Entry {
-    data class Item(val segment: Segment) : Entry
-    data class Gap(val fromMs: Long, val toMs: Long) : Entry
+private sealed interface TimelineRow {
+    data class Item(val entry: TimelineEntry) : TimelineRow
+    data class Gap(val fromMs: Long, val toMs: Long) : TimelineRow
 }
 
 /**
  * The day as a line: a stay is a solid block, a move a dotted path, a gap a faint dashed line.
- * [dayStartMs] clips segments that began the day before, so the first row starts at midnight.
+ * [dayStartMs] clips entries that began the day before, so the first row starts at midnight.
+ * With [markPending], entries only this phone knows say so: Dawarich does not show them yet.
  */
 @Composable
-fun Timeline(segments: List<Segment>, dayStartMs: Long, nowMs: Long, live: Boolean, modifier: Modifier = Modifier) {
-    val entries = remember(segments) {
+fun Timeline(
+    entries: List<TimelineEntry>,
+    dayStartMs: Long,
+    nowMs: Long,
+    live: Boolean,
+    markPending: Boolean,
+    onOpenMove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val rows = remember(entries) {
         buildList {
-            segments.forEachIndexed { i, segment ->
-                val previous = segments.getOrNull(i - 1)
-                if (previous != null && segment.startMs - previous.endMs > GAP_MS) add(Entry.Gap(previous.endMs, segment.startMs))
-                add(Entry.Item(segment))
+            entries.forEachIndexed { i, entry ->
+                val previous = entries.getOrNull(i - 1)
+                if (previous != null && entry.startMs - previous.endMs > GAP_MS) add(TimelineRow.Gap(previous.endMs, entry.startMs))
+                add(TimelineRow.Item(entry))
             }
         }
     }
     Column(modifier = modifier) {
-        entries.forEachIndexed { i, entry ->
-            when (entry) {
-                is Entry.Item -> SegmentRow(
-                    segment = entry.segment,
-                    startMs = maxOf(entry.segment.startMs, dayStartMs),
+        rows.forEachIndexed { i, row ->
+            when (row) {
+                is TimelineRow.Item -> EntryRow(
+                    entry = row.entry,
+                    startMs = maxOf(row.entry.startMs, dayStartMs),
                     nowMs = nowMs,
-                    // Only the newest segment can still be going on, and only while tracking runs.
-                    live = live && entry.segment.ongoing && i == entries.lastIndex,
+                    // Only the newest entry can still be going on, and only while tracking runs.
+                    live = live && row.entry.ongoing && i == rows.lastIndex,
+                    pending = markPending && row.entry.source == Source.PHONE,
+                    onOpenMove = onOpenMove,
                 )
-                is Entry.Gap -> GapRow(entry)
+                is TimelineRow.Gap -> GapRow(row)
             }
         }
     }
 }
 
 @Composable
-private fun SegmentRow(segment: Segment, startMs: Long, nowMs: Long, live: Boolean) {
+private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, pending: Boolean, onOpenMove: () -> Unit) {
     val context = LocalContext.current
     val colors = LocalStateColors.current
-    val isStay = segment.kind == SegmentKind.STAY
-    val endMs = if (live) nowMs else segment.endMs
-    val open = {
-        // Any map app; "geo:" with a label pins the exact point.
-        val uri = "geo:0,0?q=${segment.point.lat},${segment.point.lon}".toUri()
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-        } catch (_: ActivityNotFoundException) {
+    val endMs = if (live) nowMs else entry.endMs
+    val onClick = when (entry) {
+        is TimelineEntry.Stay -> {
+            {
+                // Any map app; "geo:" with a query pins the exact point.
+                entry.point?.let { point ->
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, "geo:0,0?q=${point.lat},${point.lon}".toUri()))
+                    } catch (_: ActivityNotFoundException) {
+                    }
+                }
+                Unit
+            }
         }
+        is TimelineEntry.Move -> onOpenMove
     }
+    val isStay = entry is TimelineEntry.Stay
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .heightIn(min = if (isStay) 72.dp else 60.dp)
-            .clickable(onClick = open)
+            .clickable(onClick = onClick)
             .padding(horizontal = 24.dp),
     ) {
         Text(
@@ -131,27 +149,25 @@ private fun SegmentRow(segment: Segment, startMs: Long, nowMs: Long, live: Boole
                 .padding(top = 10.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            if (isStay) {
-                Text(
-                    segment.placeName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.timeline_stay),
+            val detail = when (entry) {
+                is TimelineEntry.Stay -> when {
+                    live -> stringResource(R.string.timeline_since, duration(endMs - entry.startMs))
+                    // Tracking stopped without ending the stay; it goes on when tracking resumes.
+                    entry.ongoing -> stringResource(R.string.timeline_open_since, time(entry.startMs))
+                    else -> duration(endMs - entry.startMs)
+                }
+                is TimelineEntry.Move -> stringResource(R.string.timeline_move_detail, distance(entry.distanceM), duration(endMs - entry.startMs))
+            }
+            when (entry) {
+                is TimelineEntry.Stay -> Text(
+                    entry.name ?: stringResource(R.string.timeline_stay),
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    when {
-                        live -> stringResource(R.string.timeline_since, duration(endMs - segment.startMs))
-                        // Tracking stopped without ending the stay; it goes on when tracking resumes.
-                        segment.ongoing -> stringResource(R.string.timeline_open_since, time(segment.startMs))
-                        else -> duration(endMs - segment.startMs)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                is TimelineEntry.Move -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        ImageVector.vectorResource(segment.activity.movingIcon()),
+                        ImageVector.vectorResource(entry.mode.icon()),
                         contentDescription = null,
                         tint = colors.moving,
                         modifier = Modifier
@@ -159,15 +175,18 @@ private fun SegmentRow(segment: Segment, startMs: Long, nowMs: Long, live: Boole
                             .padding(end = 2.dp),
                     )
                     Text(
-                        stringResource(segment.activity.movingLabel()),
+                        stringResource(entry.mode.label()),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(start = 4.dp),
                     )
                 }
+            }
+            Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (pending && !live) {
                 Text(
-                    stringResource(R.string.timeline_move_detail, distance(segment.distanceM), duration(endMs - segment.startMs)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    stringResource(R.string.timeline_pending),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
         }
@@ -175,7 +194,7 @@ private fun SegmentRow(segment: Segment, startMs: Long, nowMs: Long, live: Boole
 }
 
 @Composable
-private fun GapRow(gap: Entry.Gap) {
+private fun GapRow(gap: TimelineRow.Gap) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

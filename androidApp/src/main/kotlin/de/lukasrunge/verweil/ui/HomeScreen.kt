@@ -63,6 +63,7 @@ import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.engine.Mode
 import de.lukasrunge.verweil.core.journal.Segment
 import de.lukasrunge.verweil.core.journal.SegmentKind
+import de.lukasrunge.verweil.core.timeline.toTravelMode
 import de.lukasrunge.verweil.core.upload.OutboxCounts
 import de.lukasrunge.verweil.locationSettingsIntent
 import de.lukasrunge.verweil.tracking.TrackingService
@@ -115,7 +116,7 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
             Hero(status, settings, latest, nowMs, requests)
             // Signing in again keeps the queue and tracking; the queue goes out once the key works.
             Notices(requests, upload, onSignInAgain = { app.scope.launch { app.settings.signOut() } })
-            Day(app, settings, running = status.running, nowMs = nowMs)
+            DaySection(app, settings, running = status.running, nowMs = nowMs, lastUploadMs = upload.lastSuccessMs)
             HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             counts?.let { UploadSection(app, settings, it, upload) }
         }
@@ -149,7 +150,7 @@ private fun Hero(status: TrackingStatus, settings: SettingsValues, latest: Segme
                 colors.staying,
             )
             Mode.MOVING -> Triple(
-                stringResource(status.activity.takeIf { it.isMoving }.movingLabel()),
+                stringResource(status.activity.toTravelMode().label()),
                 move?.let { stringResource(R.string.hero_since_distance, time(it.startMs), distance(it.distanceM)) }
                     ?: stringResource(R.string.hero_moving_detail),
                 colors.moving,
@@ -281,61 +282,6 @@ private fun Notices(requests: AccessRequests, upload: UploadState, onSignInAgain
             )
         }
     }
-}
-
-/** One day of the timeline, with arrows to go back through the last weeks. */
-@Composable
-private fun Day(app: VerweilApp, settings: SettingsValues, running: Boolean, nowMs: Long) {
-    val context = LocalContext.current
-    val zone = remember { ZoneId.systemDefault() }
-    val today = remember(nowMs) { LocalDate.now(zone) }
-    var epochDay by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
-    val day = LocalDate.ofEpochDay(epochDay)
-    val startMs = day.atStartOfDay(zone).toInstant().toEpochMilli()
-    val endMs = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    val segments by remember(epochDay) { app.journal.segmentsFlow(startMs, endMs, Dispatchers.IO) }
-        .collectAsStateWithLifecycle(initialValue = null)
-
-    val placeNames = remember { PlaceNames(context, app) }
-    LaunchedEffect(segments, settings.lookUpPlaceNames) {
-        val loaded = segments ?: return@LaunchedEffect
-        if (settings.lookUpPlaceNames) placeNames.fillIn(loaded)
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 24.dp, end = 12.dp, top = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(dayLabel(day, today), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-        IconButton(onClick = { epochDay-- }, enabled = day.isAfter(today.minusDays(29))) {
-            Icon(ImageVector.vectorResource(R.drawable.ic_chevron_left), contentDescription = stringResource(R.string.action_previous_day))
-        }
-        IconButton(onClick = { epochDay++ }, enabled = day.isBefore(today)) {
-            Icon(ImageVector.vectorResource(R.drawable.ic_chevron_right), contentDescription = stringResource(R.string.action_next_day))
-        }
-    }
-
-    val loaded = segments ?: return
-    val stays = loaded.count { it.kind == SegmentKind.STAY }
-    val meters = loaded.filter { it.kind == SegmentKind.MOVE }.sumOf { it.distanceM }
-    if (loaded.isEmpty()) {
-        Text(
-            stringResource(if (day == today) R.string.timeline_empty_today else R.string.timeline_empty),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 24.dp),
-        )
-        return
-    }
-    Text(
-        pluralStringResource(R.plurals.timeline_summary, stays, stays, distance(meters)),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
-    )
-    Timeline(loaded, dayStartMs = startMs, nowMs = nowMs, live = running && day == today)
 }
 
 @Composable

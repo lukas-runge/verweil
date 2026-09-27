@@ -156,7 +156,11 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
             onSignOut = { discard ->
                 if (status.running) TrackingService.stop(context)
                 app.scope.launch {
-                    if (discard) withContext(Dispatchers.IO) { app.outbox.clear() }
+                    withContext(Dispatchers.IO) {
+                        if (discard) app.outbox.clear()
+                        // The next account has a different history.
+                        app.timelineCache.clear()
+                    }
                     app.settings.setTrackingEnabled(false)
                     app.settings.signOut()
                 }
@@ -176,7 +180,12 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
             text = stringResource(R.string.clear_timeline_text),
             confirm = stringResource(R.string.action_delete),
             destructive = true,
-            onConfirm = { scope.launch(Dispatchers.IO) { app.journal.clear() } },
+            onConfirm = {
+                scope.launch(Dispatchers.IO) {
+                    app.journal.clear()
+                    app.timelineCache.clear()
+                }
+            },
             onDismiss = { dialog = null },
         )
         null -> Unit
