@@ -84,14 +84,14 @@ fun Timeline(
         }
     }
     Column(modifier = modifier) {
-        rows.forEachIndexed { i, row ->
+        rows.forEach { row ->
             when (row) {
                 is TimelineRow.Item -> EntryRow(
                     entry = row.entry,
                     startMs = maxOf(row.entry.startMs, dayStartMs),
                     nowMs = nowMs,
-                    // Only the newest entry can still be going on, and only while tracking runs.
-                    live = live && row.entry.ongoing && i == rows.lastIndex,
+                    // Only what is still going on, and only while tracking runs.
+                    live = live && row.entry.ongoing,
                     note = if (!markPending) null else when (row.entry.source) {
                         Source.PHONE -> R.string.timeline_pending
                         // What the phone saw where Dawarich has a hole just fills it; Dawarich keeps its own view.
