@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,7 +62,16 @@ import java.time.ZoneOffset
  * recognised since. Arrows step through the days, the date opens a calendar.
  */
 @Composable
-fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowMs: Long, lastUploadMs: Long?) {
+fun DaySection(
+    app: VerweilApp,
+    settings: SettingsValues,
+    running: Boolean,
+    nowMs: Long,
+    lastUploadMs: Long?,
+    pullRefresh: Int,
+    refreshing: Boolean,
+    onRefreshed: () -> Unit,
+) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
     val today = remember(nowMs) { LocalDate.now(zone) }
@@ -73,7 +83,7 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
 
     val phone by remember(epochDay) { app.journal.segmentsFlow(startMs, endMs, Dispatchers.IO) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs)
+    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs to pullRefresh, onFetched = onRefreshed)
     val entries = remember(dawarich.entries, phone) { mergeTimeline(dawarich.entries.orEmpty(), phone) }
 
     // Names for stays only the phone knows; Dawarich names its own.
@@ -121,7 +131,8 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
         }
     }
 
-    if (dawarich.loading) {
+    // While pulled down, the spinner at the top already says it.
+    if (dawarich.loading && !refreshing) {
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp))
     } else {
         Spacer(Modifier.height(4.dp))
@@ -181,7 +192,8 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
  * to the front and when [refreshKey] changes, e.g. after an upload, so today catches up with what was sent.
  */
 @Composable
-private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, refreshKey: Any?): DawarichDay {
+private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, refreshKey: Any?, onFetched: () -> Unit): DawarichDay {
+    val fetched by rememberUpdatedState(onFetched)
     val source = remember { DawarichTimeline(app) }
     var state by remember(startMs) { mutableStateOf(DawarichDay(entries = null, fetchedMs = null, loading = true, problem = null)) }
     var resumed by remember { mutableLongStateOf(0L) }
@@ -195,7 +207,12 @@ private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, ref
             source.cached(startMs)?.let { state = DawarichDay(it.entries, it.fetchedMs, loading = true, problem = null) }
         }
         state = state.copy(loading = true)
-        state = source.fetch(startMs, endMs)
+        try {
+            state = source.fetch(startMs, endMs)
+        } finally {
+            // Also when a newer fetch replaces this one, so the pull-down spinner never hangs.
+            fetched()
+        }
     }
     return state
 }
