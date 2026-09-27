@@ -10,6 +10,8 @@ import de.lukasrunge.verweil.core.model.TrackPoint
 import de.lukasrunge.verweil.core.place.InMemoryPlaceStore
 import de.lukasrunge.verweil.core.place.PlaceMemory
 import kotlinx.serialization.json.Json
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -99,6 +101,40 @@ class StayEngineTest {
         assertEquals(lastPresence, ended.untilMs)
         val afterStay = out.dropWhile { it !is StayEnded }.drop(1)
         assertTrue(afterStay.filterIsInstance<TrackPoint>().size > 10)
+    }
+
+    @Test
+    fun aWalkAroundTheBlockWithPreciseFixesIsATrip() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 20)
+        s.activity(Activity.WALKING)
+        walkAroundTheBlock(s, accuracy = 5.0)
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 10)
+
+        val out = s.run()
+
+        assertEquals(1, out.filterIsInstance<StayEnded>().size)
+        assertEquals(2, out.filterIsInstance<StayStarted>().size)
+        val distance = out.dawarichDistanceMeters()
+        assertTrue(distance in 280.0..340.0, "walked the 320 m loop, got $distance")
+    }
+
+    @Test
+    fun theSameWalkWithImpreciseFixesStaysWithinTheStay() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 20)
+        s.activity(Activity.WALKING)
+        walkAroundTheBlock(s, accuracy = 30.0)
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 10)
+
+        val out = s.run()
+
+        assertEquals(1, out.filterIsInstance<StayStarted>().size)
+        assertTrue(out.none { it is StayEnded || it is TrackPoint })
     }
 
     @Test
@@ -291,11 +327,24 @@ class StayEngineTest {
     }
 
     /** Stays put with a fix every minute, and a Wi-Fi scan every ten when [wifi] is given. */
-    private fun stayAt(s: Scenario, eastM: Double, minutes: Int, accuracy: Double = 10.0, wifi: Array<String>? = null) {
+    private fun stayAt(s: Scenario, eastM: Double = 0.0, minutes: Int, accuracy: Double = 10.0, wifi: Array<String>? = null) {
         repeat(minutes) {
             s.advance(1.minutes)
             s.fix(eastM = eastM, northM = 0.0, accuracy = accuracy)
             if (wifi != null && it % 10 == 0) s.wifi(*wifi)
+        }
+    }
+
+    /** A 100 × 60 m loop at walking pace that starts and ends at the origin, never farther than 117 m from it. */
+    private fun walkAroundTheBlock(s: Scenario, accuracy: Double) {
+        val corners = listOf(0.0 to 0.0, 100.0 to 0.0, 100.0 to 60.0, 0.0 to 60.0, 0.0 to 0.0)
+        corners.zipWithNext { (fromEast, fromNorth), (toEast, toNorth) ->
+            val steps = (hypot(toEast - fromEast, toNorth - fromNorth) / 7.0).roundToInt()
+            repeat(steps) { i ->
+                val f = (i + 1.0) / steps
+                s.advance(5.seconds)
+                s.fix(fromEast + (toEast - fromEast) * f, fromNorth + (toNorth - fromNorth) * f, accuracy)
+            }
         }
     }
 

@@ -146,10 +146,9 @@ class StayEngine(
             }
 
             Mode.STAYING -> {
-                val inside = distanceMeters(s.anchor!!, fix.point) <= config.exitRadiusM
-                if (fix.isGood() && !inside) {
+                if (fix.isGood() && isOutside(fix)) {
                     startLeaving(fix.timeMs, fix, out)
-                } else if (inside && fix.accuracy <= config.anchorAccuracyM) {
+                } else if (distanceMeters(s.anchor!!, fix.point) <= config.exitRadiusM && fix.accuracy <= config.anchorAccuracyM) {
                     present(fix.timeMs)
                     rememberStayFix(fix)
                 }
@@ -157,7 +156,7 @@ class StayEngine(
 
             Mode.LEAVING -> {
                 if (!fix.isGood()) return
-                if (distanceMeters(s.anchor!!, fix.point) > config.exitRadiusM) {
+                if (isOutside(fix)) {
                     s.exitFixes += fix
                     confirmLeavingIfPossible(out)
                 } else if (s.activity.isMoving) {
@@ -371,6 +370,19 @@ class StayEngine(
             return true
         }
         return plausible
+    }
+
+    /**
+     * Whether a fix counts as outside the stay. While moving, a precise fix is already out just beyond the
+     * stay radius, so a walk around the block becomes a trip; otherwise it takes `R_exit`, against indoor jitter.
+     */
+    private fun isOutside(fix: Fix): Boolean {
+        val radius = if (s.activity.isMoving) {
+            minOf(config.exitRadiusM, config.stayRadiusM + config.exitAccuracyFactor * fix.accuracy)
+        } else {
+            config.exitRadiusM
+        }
+        return distanceMeters(s.anchor!!, fix.point) > radius
     }
 
     private fun Fix.isGood() = accuracy > 0 && accuracy <= config.goodAccuracyM

@@ -103,13 +103,15 @@ That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-re
   Time alone does not stretch a stay, e.g. across hours with the phone switched off.
 - Every `T_heartbeat` of presence, emit `StayHeartbeat(anchor, time)`.
 - Go to LEAVING when a movement activity starts (`WALKING`, `RUNNING`, `CYCLING`, `VEHICLE`),
-  when a good fix lands outside `R_exit`,
+  when a good fix lands outside the exit radius (see LEAVING),
   when a Wi-Fi scan's similarity to the stay's fingerprint drops below `S_leave`,
   or when the platform reports leaving the geofence around the anchor.
 
 **LEAVING** (a candidate departure)
-- The departure is confirmed when a movement activity is active **and** a good fix lies outside `R_exit`,
+- The departure is confirmed when a movement activity is active **and** a good fix lies outside the exit radius,
   or when `N_exit` consecutive good fixes lie outside `R_exit`.
+  While moving, the exit radius shrinks with the fix's accuracy to `min(R_exit, R_stay + F_exit × accuracy)`:
+  a walk around the block with 5 m fixes is a trip, while imprecise fixes still need `R_exit` against indoor jitter.
   Emit `StayEnded(anchor, since, until, center)` with `until` = the last evidence of presence
   and `center` = the accuracy-weighted median of all fixes of the stay, or the known place it belongs to.
   Then go to MOVING; the new track starts at the anchor.
@@ -137,6 +139,7 @@ These are starting values, to be tuned by replay:
 | `A_good` | 35 m | Maximum accuracy radius of a "good" fix |
 | `R_stay` | 75 m | Radius of a stay candidate |
 | `R_exit` | 150 m | Distance from the anchor that counts as outside |
+| `F_exit` | 2 | While moving, a fix is outside beyond `R_stay` plus this many times its accuracy |
 | `T_settle` | 3 min | Clustering window to enter SETTLING without `STILL` |
 | `T_stay` | 5 min | Minimum stay duration |
 | `T_leave` | 3 min | Time to confirm a departure |

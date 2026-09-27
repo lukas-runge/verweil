@@ -11,6 +11,8 @@ data class EngineConfig(
     val anchorAccuracyM: Double = 100.0,
     val stayRadiusM: Double = 75.0,
     val exitRadiusM: Double = 150.0,
+    /** While moving, a fix is already outside at `stayRadiusM` plus this many times its accuracy (`F_exit`). */
+    val exitAccuracyFactor: Double = 2.0,
     val settleWindow: Duration = 3.minutes,
     val minStay: Duration = 5.minutes,
     val leaveTimeout: Duration = 3.minutes,
