@@ -91,22 +91,36 @@ That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-re
 - A good fix outside `R_stay` while not `STILL` means it was a traffic light, not a stay.
   Flush the buffer as track points and go back to MOVING.
 - If the candidate holds for `T_stay`, go to STAYING.
-  The anchor is the accuracy-weighted median of the buffered fixes.
+  The anchor is the accuracy-weighted median of the buffered fixes,
+  or a known place's anchor when the Wi-Fi seen so far matches one (see [Place memory](#place-memory-wi-fi-fingerprints)).
   The stay start is backdated to the start of SETTLING.
 
 **STAYING**
-- Emit `StayStarted(anchor, since)`. Ignore all fixes for output;
-  good fixes may still refine the anchor.
+- Emit `StayStarted(anchor, since)`. Ignore all fixes for output.
+  Fixes inside `R_exit` are collected to refine the stay's centre for the visit;
+  the anchor itself stays put, so all points of the stay share one position.
+- Presence needs evidence: a fix inside `R_exit`, `STILL`, or a matching Wi-Fi scan.
+  Time alone does not stretch a stay, e.g. across hours with the phone switched off.
+- Every `T_heartbeat` of presence, emit `StayHeartbeat(anchor, time)`.
 - Go to LEAVING when a movement activity starts (`WALKING`, `RUNNING`, `CYCLING`, `VEHICLE`),
   when a good fix lands outside `R_exit`,
-  or when the Wi-Fi fingerprint drops below `S_leave`.
+  when a Wi-Fi scan's similarity to the stay's fingerprint drops below `S_leave`,
+  or when the platform reports leaving the geofence around the anchor.
 
 **LEAVING** (a candidate departure)
 - The departure is confirmed when a movement activity is active **and** a good fix lies outside `R_exit`,
   or when `N_exit` consecutive good fixes lie outside `R_exit`.
-  Emit `StayEnded(anchor, since, until)` with `until` = the last evidence of presence.
+  Emit `StayEnded(anchor, since, until, center)` with `until` = the last evidence of presence
+  and `center` = the accuracy-weighted median of all fixes of the stay, or the known place it belongs to.
   Then go to MOVING; the new track starts at the anchor.
 - Without confirmation within `T_leave`, drop the evidence and go back to STAYING (it was jitter).
+  Wi-Fi and geofence exits only start LEAVING; confirming still takes fixes.
+
+**Tracking stops:** an open stay ends at its last evidence of presence, buffered track points are released,
+and the next start begins in MOVING.
+
+**Restarts:** the engine's whole state is saved together with the uploads of each step, in one transaction.
+When Android kills the app, it continues where it stopped: an ongoing stay is not lost, nothing is queued twice.
 
 ### Moving filters
 
@@ -129,21 +143,30 @@ These are starting values, to be tuned by replay:
 | `N_exit` | 2 | Consecutive good fixes outside `R_exit` without motion |
 | `D_min` | 15 m | Minimum spacing of forwarded track points |
 | `S_leave` | 0.3 | Wi-Fi similarity below which the place counts as changed |
+| `T_heartbeat` | 60 min | Interval of anchor points during a stay |
+| `N_wifi` | 2 | Scans a stay needs before its fingerprint counts |
+| `S_place` | 0.5 | Wi-Fi similarity from which a stay belongs to a known place |
+| `R_place` | 250 m | Maximum distance between a stay and a known place it matches |
 
 ## Place memory (Wi-Fi fingerprints)
 
 This is Android only; iOS relies on its built-in visit monitoring (`CLVisit`) instead.
 
 - During a stay, collect the BSSIDs seen across scans.
-  Store a `Place` with its anchor, radius, fingerprint (BSSID → seen ratio) and visit count.
+  When the stay ends, merge it into a `Place` with anchor, fingerprint (BSSID → seen ratio) and visit count:
+  the anchor becomes the visit-weighted mean of the stays' centres (weight capped at 20, so a place can still move),
+  the fingerprint the weighted mean of the ratios, without access points seen in fewer than 5 % of scans.
 - When a new stay starts, compare its fingerprint with known places (weighted Jaccard similarity).
-  Above a threshold, snap the anchor to the known place's anchor.
-  Repeated visits then land on exactly the same point, as in Timeline.
+  From `S_place`, snap the anchor to the known place's anchor.
+  Repeated visits then land on the same point, as in Timeline.
+- A known place only matches within `R_place` of the measured position.
+  Access points that travel, like train Wi-Fi or phone hotspots, would otherwise pull stays across the map.
 - A falling similarity during a stay is an extra departure signal that is independent of GPS.
-- BSSIDs never leave the device.
+- BSSIDs are hashed with a random per-install salt and never leave the device.
 
 Android throttles scans to 4 per 2 minutes in the foreground and 1 per 30 minutes in the background.
-Verweil mostly reads the results of scans the system runs anyway, which is enough during a stay.
+Verweil mostly reads the results of scans the system runs anyway.
+While not moving it asks for one scan per 30 minutes at most, within the background limit.
 
 ## Output to Dawarich
 
@@ -153,15 +176,16 @@ Authentication is the user's API key as `Authorization: Bearer <key>`.
 - **Track points** go to `POST /api/v1/overland/batches` as GeoJSON features.
   Properties: `timestamp` (ISO 8601), `horizontal_accuracy`, `speed`, `altitude`,
   `motion` (activity), `device_id`.
-- **Stays** become two points at the anchor, one at arrival and one at departure,
+- **Stays** become points at the anchor: one at arrival, one at departure and a heartbeat every 60 minutes,
   so the map shows you there and distance stays at 0.
-  An optional heartbeat point at the anchor every 60 minutes keeps the map populated during long stays.
-- **Visits:** when a stay ends, Verweil also creates it through `POST /api/v1/visits`
+- **Visits:** when a stay ends, Verweil also creates it at its refined centre through `POST /api/v1/visits`
   with `{ "visit": { "latitude", "longitude", "started_at", "ended_at", "name": "Suggested place", "status": "suggested" } }`.
   With status `suggested`, Dawarich reverse-geocodes a name for new places,
   reuses places within 100 m, deduplicates, and lets the user confirm the visit.
 - All output goes through a persistent upload queue. It is sent in batches with retries and survives
   offline periods and app restarts.
+  Data the server refuses (4xx other than 401, 403, 408 and 429) is set aside with its error instead of blocking
+  the queue; the user can retry it. A refused API key keeps everything queued until the user signs in again.
 
 ## Tuning by replay
 
@@ -177,9 +201,13 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 ## Battery strategy
 
 - **MOVING:** high-accuracy location every 5 s.
-- **STAYING:** balanced or passive location. Wake-ups come from activity transitions
-  and a geofence around the anchor with radius `R_exit`.
-- Wi-Fi: passive results only, no forced scans in the background.
+- **STAYING:** balanced location every 5 minutes, plus fixes other apps request, at most one per minute.
+  Wake-ups come from activity transitions and a geofence around the anchor with radius `R_exit`.
+  Without the geofence (no "Allow all the time", location off) it falls back to every 60 s.
+- Wi-Fi: mostly passive results; see [Place memory](#place-memory-wi-fi-fingerprints).
+- Tracking resumes after a reboot or an app update when it was on.
+  The app asks to be exempt from battery optimization and links to [dontkillmyapp.com](https://dontkillmyapp.com/)
+  for manufacturers that stop background apps anyway.
 
 ## Non-goals for v1
 
