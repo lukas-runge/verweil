@@ -1,0 +1,42 @@
+-- Everything waiting for upload. Survives offline periods and app restarts.
+
+CREATE TABLE pending_point (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    time_ms INTEGER NOT NULL,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    accuracy REAL,
+    speed REAL,
+    altitude REAL,
+    motion TEXT
+);
+
+CREATE TABLE pending_visit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    started_ms INTEGER NOT NULL,
+    ended_ms INTEGER NOT NULL
+);
+
+insertPoint:
+INSERT INTO pending_point (time_ms, lat, lon, accuracy, speed, altitude, motion)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+oldestPoints:
+SELECT * FROM pending_point ORDER BY time_ms, id LIMIT :limit;
+
+deletePoints:
+DELETE FROM pending_point WHERE id IN :ids;
+
+countPoints:
+SELECT count(*) FROM pending_point;
+
+insertVisit:
+INSERT INTO pending_visit (lat, lon, started_ms, ended_ms) VALUES (?, ?, ?, ?);
+
+oldestVisit:
+SELECT * FROM pending_visit ORDER BY started_ms, id LIMIT 1;
+
+deleteVisit:
+DELETE FROM pending_visit WHERE id = ?;
