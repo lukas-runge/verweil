@@ -215,7 +215,8 @@ Authentication is the user's API key as `Authorization: Bearer <key>`.
 
 Thresholds are the hard part, and walking around for every change doesn't scale.
 
-- **Record:** a debug recorder writes every raw event of a day to a JSONL log.
+- **Record:** a recorder writes every raw event of a day to a JSONL log (on in debug builds, a setting otherwise,
+  kept 30 days, shared from the diagnostics screen).
   BSSIDs are hashed before they are written.
 - **Replay:** `./gradlew :core:replay --args="day.jsonl --from 13:30 --to 13:40 --truth route.geojson"`
   runs a log through variants of the track pipeline: raw fixes, spacing by `D_min` (at 1 s and thinned to
@@ -247,7 +248,8 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 - Map matching. Off roads and paths, e.g. hiking or climbing, there is nothing to snap to,
   so it could only ever be optional server-side post-processing, e.g. with a self-hosted Valhalla (Meili).
 - Place naming, which Dawarich and its reverse geocoder already do.
-- Any UI beyond status, settings and a debug view. Dawarich is the UI.
+- Any UI beyond status, settings, a debug view and a timeline of the last days on the phone,
+  which shows what the engine decided so a day can be checked against memory. Dawarich is the UI.
 
 ## Open questions
 
