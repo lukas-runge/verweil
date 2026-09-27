@@ -1,0 +1,12 @@
+-- The engine's memory as JSON, so an ongoing stay survives the app being killed.
+
+CREATE TABLE engine_state (
+    id INTEGER PRIMARY KEY CHECK (id = 0),
+    json TEXT NOT NULL
+);
+
+load:
+SELECT json FROM engine_state WHERE id = 0;
+
+save:
+INSERT OR REPLACE INTO engine_state (id, json) VALUES (0, ?);

@@ -1,4 +1,5 @@
 -- Everything waiting for upload. Survives offline periods and app restarts.
+-- Rows the server rejected keep their error and wait until the user retries them.
 
 CREATE TABLE pending_point (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,7 +9,8 @@ CREATE TABLE pending_point (
     accuracy REAL,
     speed REAL,
     altitude REAL,
-    motion TEXT
+    motion TEXT,
+    error TEXT
 );
 
 CREATE TABLE pending_visit (
@@ -16,7 +18,8 @@ CREATE TABLE pending_visit (
     lat REAL NOT NULL,
     lon REAL NOT NULL,
     started_ms INTEGER NOT NULL,
-    ended_ms INTEGER NOT NULL
+    ended_ms INTEGER NOT NULL,
+    error TEXT
 );
 
 insertPoint:
@@ -24,19 +27,36 @@ INSERT INTO pending_point (time_ms, lat, lon, accuracy, speed, altitude, motion)
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
 oldestPoints:
-SELECT * FROM pending_point ORDER BY time_ms, id LIMIT :limit;
+SELECT * FROM pending_point WHERE error IS NULL ORDER BY time_ms, id LIMIT :limit;
 
 deletePoints:
 DELETE FROM pending_point WHERE id IN :ids;
 
-countPoints:
-SELECT count(*) FROM pending_point;
+rejectPoints:
+UPDATE pending_point SET error = :error WHERE id IN :ids;
 
 insertVisit:
 INSERT INTO pending_visit (lat, lon, started_ms, ended_ms) VALUES (?, ?, ?, ?);
 
 oldestVisit:
-SELECT * FROM pending_visit ORDER BY started_ms, id LIMIT 1;
+SELECT * FROM pending_visit WHERE error IS NULL ORDER BY started_ms, id LIMIT 1;
 
 deleteVisit:
 DELETE FROM pending_visit WHERE id = ?;
+
+rejectVisit:
+UPDATE pending_visit SET error = :error WHERE id = :id;
+
+retryRejected {
+    UPDATE pending_point SET error = NULL WHERE error IS NOT NULL;
+    UPDATE pending_visit SET error = NULL WHERE error IS NOT NULL;
+}
+
+counts:
+SELECT
+    (SELECT count(*) FROM pending_point WHERE error IS NULL) +
+        (SELECT count(*) FROM pending_visit WHERE error IS NULL) AS pending,
+    (SELECT count(*) FROM pending_point WHERE error IS NOT NULL) +
+        (SELECT count(*) FROM pending_visit WHERE error IS NOT NULL) AS rejected,
+    (SELECT error FROM pending_point WHERE error IS NOT NULL
+        UNION ALL SELECT error FROM pending_visit WHERE error IS NOT NULL LIMIT 1) AS last_error;

@@ -41,6 +41,11 @@ data class WifiScan(
     val bssids: Set<String>,
 ) : SensorEvent
 
+/** The platform saw the phone leave the geofence around a stay anchor. A hint to look closer, not proof. */
+@Serializable
+@SerialName("geofence_exit")
+data class GeofenceExit(override val timeMs: Long) : SensorEvent
+
 /** Lets the platform advance time when no sensor delivers anything, so timeouts still fire. */
 @Serializable
 @SerialName("tick")

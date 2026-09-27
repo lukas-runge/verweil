@@ -1,0 +1,21 @@
+-- Places recognised by their Wi-Fi. The fingerprint is JSON: hashed BSSID -> share of scans.
+
+CREATE TABLE place (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    fingerprint TEXT NOT NULL,
+    visits INTEGER NOT NULL
+);
+
+all:
+SELECT * FROM place;
+
+insert:
+INSERT INTO place (lat, lon, fingerprint, visits) VALUES (?, ?, ?, ?);
+
+update:
+UPDATE place SET lat = :lat, lon = :lon, fingerprint = :fingerprint, visits = :visits WHERE id = :id;
+
+lastInsertId:
+SELECT last_insert_rowid();

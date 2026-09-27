@@ -1,0 +1,15 @@
+ALTER TABLE pending_point ADD COLUMN error TEXT;
+ALTER TABLE pending_visit ADD COLUMN error TEXT;
+
+CREATE TABLE place (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    fingerprint TEXT NOT NULL,
+    visits INTEGER NOT NULL
+);
+
+CREATE TABLE engine_state (
+    id INTEGER PRIMARY KEY CHECK (id = 0),
+    json TEXT NOT NULL
+);

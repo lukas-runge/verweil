@@ -17,12 +17,13 @@ Early prototype.
 
 | Part | State |
 |---|---|
-| Stay/move state machine (`core/engine`) | First version with tests; thresholds not yet tuned on real days |
-| Dawarich upload: Overland points and visits, persistent outbox | Done, tested against mocks |
+| Stay/move state machine (`core/engine`), survives app restarts | Done with tests; thresholds not yet tuned on real days |
+| Wi-Fi place memory, refined visit centres, heartbeats | Done with tests; thresholds are guesses |
+| Dawarich upload: Overland points and visits, persistent outbox, refused data set aside | Done, tested against mocks |
 | Sign-in: Dawarich Cloud (email, 2FA), self-hosted (QR code, manual setup with proxy headers) | Done, tested against mocks |
 | Raw event recording (JSONL) and replay | Done |
-| Android: foreground service, fused location, activity recognition, upload worker, settings UI | First version, not yet tried on a device |
-| Anchor refinement, Wi-Fi place memory | Planned |
+| Android: foreground service, fused location, activity recognition, Wi-Fi, geofence, resume after reboot, upload worker, status UI | Runs in the emulator; not yet tried on a real phone for a day |
+| Replay tool with GeoJSON and metrics | Planned |
 | iOS app | Planned; `core` already compiles for iOS |
 
 ## Build
@@ -42,5 +43,5 @@ Needs JDK 21 and the Android SDK.
    - **Self-hosted:** in Dawarich, open Account → API access. Scan the QR code there, or enter the server URL
      and API key by hand. Manual setup also takes custom headers for servers behind an authenticating
      reverse proxy (Cloudflare Access, Pangolin).
-3. Grant location and activity access, then "Allow location all the time".
+3. Grant location and activity access, then "Allow location all the time", then allow running in the background.
 4. Start tracking. Disable other trackers that send to the same Dawarich account.

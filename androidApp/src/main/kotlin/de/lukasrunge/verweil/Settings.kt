@@ -12,6 +12,7 @@ import de.lukasrunge.verweil.core.dawarich.parseHeaderLines
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -25,6 +26,8 @@ data class SettingsValues(
     val deviceId: String = Build.MODEL,
     /** Writes every raw sensor event to a daily JSONL file for replay-based tuning. */
     val recordRawEvents: Boolean = true,
+    /** The user wants tracking on; it resumes after a reboot or an app update. */
+    val trackingEnabled: Boolean = false,
 ) {
     val isConfigured: Boolean get() = serverUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -37,6 +40,8 @@ class Settings(private val context: Context) {
         val customHeaders = stringPreferencesKey("custom_headers")
         val deviceId = stringPreferencesKey("device_id")
         val recordRawEvents = booleanPreferencesKey("record_raw_events")
+        val trackingEnabled = booleanPreferencesKey("tracking_enabled")
+        val wifiSalt = stringPreferencesKey("wifi_salt")
     }
 
     val values: Flow<SettingsValues> = context.dataStore.data.map { prefs ->
@@ -48,10 +53,27 @@ class Settings(private val context: Context) {
             customHeaders = prefs[Keys.customHeaders]?.let(::parseHeaderLines) ?: defaults.customHeaders,
             deviceId = prefs[Keys.deviceId] ?: defaults.deviceId,
             recordRawEvents = prefs[Keys.recordRawEvents] ?: defaults.recordRawEvents,
+            trackingEnabled = prefs[Keys.trackingEnabled] ?: defaults.trackingEnabled,
         )
     }
 
     suspend fun current(): SettingsValues = values.first()
+
+    suspend fun setTrackingEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.trackingEnabled] = enabled }
+    }
+
+    /**
+     * Random per install, mixed into every BSSID hash. Without it, hashed BSSIDs in a shared recording
+     * could be looked up in public Wi-Fi maps.
+     */
+    suspend fun wifiSalt(): String {
+        var salt = ""
+        context.dataStore.edit { prefs ->
+            salt = prefs[Keys.wifiSalt] ?: UUID.randomUUID().toString().also { prefs[Keys.wifiSalt] = it }
+        }
+        return salt
+    }
 
     suspend fun signIn(credentials: DawarichCredentials, customHeaders: Map<String, String>) {
         context.dataStore.edit { prefs ->

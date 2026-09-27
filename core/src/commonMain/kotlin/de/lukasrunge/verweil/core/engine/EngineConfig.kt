@@ -18,4 +18,14 @@ data class EngineConfig(
     val leaveTimeout: Duration = 3.minutes,
     val exitFixesWithoutMotion: Int = 2,
     val minPointSpacingM: Double = 15.0,
+    /** A point at the anchor this often during a stay; null turns heartbeats off. */
+    val heartbeatInterval: Duration? = 60.minutes,
+    /** Wi-Fi scans a stay needs before its fingerprint counts, for departures and place memory. */
+    val minWifiScans: Int = 2,
+    /** A scan less similar than this to the stay's fingerprint suggests the place changed (`S_leave`). */
+    val wifiLeaveSimilarity: Double = 0.3,
+    /** A stay at least this similar to a known place is the same place. */
+    val placeMatchSimilarity: Double = 0.5,
+    /** Guards against moving access points (trains, hotspots): a known place only matches this close by. */
+    val placeMatchRadiusM: Double = 250.0,
 )
