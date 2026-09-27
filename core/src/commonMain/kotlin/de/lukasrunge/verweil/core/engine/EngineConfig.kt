@@ -34,8 +34,12 @@ data class EngineConfig(
     val maxTrackPointInterval: Duration = 30.seconds,
     /** Spacing of track points when [simplifyToleranceM] is null (`D_min`). */
     val minPointSpacingM: Double = 15.0,
-    /** A point at the anchor this often during a stay; null turns heartbeats off. */
-    val heartbeatInterval: Duration? = 60.minutes,
+    /**
+     * A point at the anchor this often during a stay; null turns heartbeats off. Dawarich's own visit detection
+     * needs 3 points per stay and ends a stay after an hour without points; with a point every 5 minutes it finds
+     * every stay itself, instead of replacing Verweil's suggested visit with nothing.
+     */
+    val heartbeatInterval: Duration? = 5.minutes,
     /** Wi-Fi scans a stay needs before its fingerprint counts, for departures and place memory. */
     val minWifiScans: Int = 2,
     /** A scan less similar than this to the stay's fingerprint suggests the place changed (`S_leave`). */

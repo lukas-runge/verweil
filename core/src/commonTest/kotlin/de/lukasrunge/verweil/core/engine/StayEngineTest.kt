@@ -198,7 +198,7 @@ class StayEngineTest {
     }
 
     @Test
-    fun longStayGetsHourlyHeartbeatsAtTheAnchor() {
+    fun aStayGetsAPointEveryFiveMinutesAtTheAnchor() {
         val s = Scenario()
         walkEast(s, fromM = 0.0, minutes = 2)
         s.activity(Activity.STILL)
@@ -206,9 +206,12 @@ class StayEngineTest {
 
         val out = s.run()
 
+        // Dawarich's own visit detection needs 3 points and ends a stay after an hour of silence;
+        // with a point every 5 minutes it finds the stay itself instead of dropping Verweil's visit.
         val anchor = out.filterIsInstance<StayStarted>().single().anchor
         val heartbeats = out.filterIsInstance<StayHeartbeat>()
-        assertEquals(3, heartbeats.size)
+        assertTrue(heartbeats.size >= 30, "about one per 5 minutes, got ${heartbeats.size}")
+        heartbeats.zipWithNext { a, b -> assertTrue(b.timeMs - a.timeMs <= 6 * 60_000, "no long silence") }
         assertTrue(heartbeats.all { it.anchor == anchor })
         assertTrue(out.dawarichDistanceMeters() < 180.0, "heartbeats add no distance")
     }

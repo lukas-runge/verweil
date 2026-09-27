@@ -167,7 +167,7 @@ These are starting values, to be tuned by replay:
 | `T_point` | 30 s | Longest time between two track points |
 | `D_min` | 15 m | Spacing of track points when simplification is off (as before smoothing) |
 | `S_leave` | 0.3 | Wi-Fi similarity below which the place counts as changed |
-| `T_heartbeat` | 60 min | Interval of anchor points during a stay |
+| `T_heartbeat` | 5 min | Interval of anchor points during a stay; Dawarich's visit detection needs them (see Output) |
 | `N_wifi` | 2 | Scans a stay needs before its fingerprint counts |
 | `S_place` | 0.5 | Wi-Fi similarity from which a stay belongs to a known place |
 | `R_place` | 250 m | Maximum distance between a stay and a known place it matches |
@@ -200,12 +200,18 @@ Authentication is the user's API key as `Authorization: Bearer <key>`.
 - **Track points** go to `POST /api/v1/overland/batches` as GeoJSON features.
   Properties: `timestamp` (ISO 8601), `horizontal_accuracy`, `speed`, `altitude`,
   `motion` (activity), `device_id`.
-- **Stays** become points at the anchor: one at arrival, one at departure and a heartbeat every 60 minutes,
+- **Stays** become points at the anchor: one at arrival, one at departure and a heartbeat every 5 minutes,
   so the map shows you there and distance stays at 0.
 - **Visits:** when a stay ends, Verweil also creates it at its refined centre through `POST /api/v1/visits`
   with `{ "visit": { "latitude", "longitude", "started_at", "ended_at", "name": "Suggested place", "status": "suggested" } }`.
-  With status `suggested`, Dawarich reverse-geocodes a name for new places,
-  reuses places within 100 m, deduplicates, and lets the user confirm the visit.
+  With status `suggested`, Dawarich reverse-geocodes a name for new places, reuses places within 100 m,
+  deduplicates, and lets the user confirm the visit.
+  Dawarich's own visit detection replaces every suggested visit in the window it looks at with what it detects
+  itself (`Visits::Detection::Persister`). It needs 3 points per stay and ends a stay after an hour without points
+  (defaults), so with hourly heartbeats it found nothing and Verweil's stays vanished. With a heartbeat every
+  5 minutes it detects each stay itself, from points that all lie on the anchor, while it is still going on.
+  Verweil does not confirm visits: what becomes fixed in Dawarich stays the user's decision.
+  The app's timeline fills holes in Dawarich's timeline with the stays and moves the phone recognised.
 - All output goes through a persistent upload queue. It is sent in batches with retries and survives
   offline periods and app restarts.
   Data the server refuses (4xx other than 401, 403, 408 and 429) is set aside with its error instead of blocking
@@ -256,4 +262,3 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 
 - Real-world latency of activity transitions, which decides how much of a departure is lost.
 - Background killing by OEM Android builds such as Samsung and Xiaomi.
-- Whether Dawarich visits created through the API interact badly with its own visit detection.
