@@ -26,7 +26,7 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
         val http = platformHttpClient()
         return try {
-            app.outbox.flush(DawarichClient(settings.serverUrl, settings.apiKey, settings.deviceId, http))
+            app.outbox.flush(DawarichClient(settings.serverUrl, settings.apiKey, settings.deviceId, http, settings.customHeaders))
             Result.success()
         } catch (e: CancellationException) {
             throw e

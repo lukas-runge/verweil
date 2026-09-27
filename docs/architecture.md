@@ -22,7 +22,7 @@ That keeps the engine testable on a desktop JVM and identical on both platforms.
 | `engine` | `StayEngine`, the stay/move state machine, and `EngineConfig` with its thresholds |
 | `geo` | Distance and accuracy-weighted median |
 | `upload` | Mapping engine output to Dawarich items; `Outbox`, the persistent upload queue |
-| `dawarich` | `DawarichClient` for the Overland batch and visits APIs |
+| `dawarich` | `DawarichClient` for the Overland batch and visits APIs; `DawarichAuth` for sign-in (mobile auth API, API key check, QR code) |
 | `replay` | `EventLog` (JSONL recording format) and `replay()` for tuning on recorded days |
 
 Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulatorArm64`.
@@ -43,8 +43,9 @@ Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulator
 | `ActivityTransitionReceiver` | Turns Play Services activity transitions into `ActivityChange` events |
 | `Recorder` | Writes raw events to `Android/data/de.lukasrunge.verweil/files/recordings/<date>.jsonl` |
 | `UploadWorker` | WorkManager job: flushes the outbox when online, batched with a 2 min delay, exponential backoff |
-| `Settings` | DataStore: server URL, API key, device ID, raw recording on/off |
-| `MainActivity` | Compose screen: settings, permissions, start/stop, status |
+| `Settings` | DataStore: server URL, API key, account email, custom headers, device ID, raw recording on/off |
+| `LoginScreen` | Sign-in flow modelled on the official Dawarich app: Cloud with email and 2FA, self-hosted with QR code (Google code scanner) or manual setup |
+| `MainActivity` | Compose screen: sign-in until connected, then account, permissions, start/stop, status |
 
 Minimum Android 10 (API 29); compile and target SDK 37.
 Play Services are required for fused location and activity recognition.

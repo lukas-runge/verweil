@@ -40,5 +40,6 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.play.services.location)
+    implementation(libs.play.services.code.scanner)
     implementation(libs.kotlinx.coroutines.play.services)
 }

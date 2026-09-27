@@ -18,8 +18,15 @@
         android:icon="@drawable/ic_launcher"
         android:label="Verweil"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:usesCleartextTraffic="true"
         tools:ignore="DataExtractionRules">
         <!-- allowBackup="false" already disables backups below Android 12; no fullBackupContent needed. -->
+        <!-- Cleartext: like the official Dawarich apps, self-hosted servers on plain HTTP work; the login warns about it. -->
+
+        <!-- Lets Play Services download the QR scanner at install time instead of on the first scan. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
 
         <activity
             android:name=".ui.MainActivity"
