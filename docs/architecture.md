@@ -21,11 +21,12 @@ That keeps the engine testable on a desktop JVM and identical on both platforms.
 | `model` | `SensorEvent` (`Fix`, `ActivityChange`, `WifiScan`, `GeofenceExit`, `Tick`) and `EngineOutput` (`TrackPoint`, `StayStarted`, `StayHeartbeat`, `StayEnded`) |
 | `engine` | `StayEngine`, the stay/move state machine; `EngineState`, its serializable memory; `EngineConfig` with its thresholds |
 | `place` | Wi-Fi fingerprints and `PlaceMemory`, which recognises known places and learns from every stay; stored in SQLite or in memory for replays |
-| `tracking` | `Tracker`: the engine with a memory. Restores the saved state and stores state and uploads of each step in one transaction |
+| `track` | `TrackSmoother`, a constant-velocity Kalman filter with Doppler velocity, and `TrackSimplifier`, streaming Douglas–Peucker; both part of `EngineState` |
+| `tracking` | `Tracker`: the engine with a memory. Restores the saved state and stores it with the uploads of a step in one transaction; steps without uploads save on mode changes or every 30 s |
 | `geo` | Distance and accuracy-weighted median |
 | `upload` | Mapping engine output to Dawarich items; `Outbox`, the persistent upload queue, which sets aside data the server refuses |
 | `dawarich` | `DawarichClient` for the Overland batch and visits APIs; `DawarichAuth` for sign-in (mobile auth API, API key check, QR code) |
-| `replay` | `EventLog` (JSONL recording format) and `replay()` for tuning on recorded days |
+| `replay` | `EventLog` (JSONL recording format) and `replay()` for tuning on recorded days; on the JVM, `ReplayTool` compares track pipeline variants as GeoJSON (`./gradlew :core:replay`) |
 
 Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulatorArm64`.
 
@@ -41,7 +42,7 @@ Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulator
 
 | Piece | Role |
 |---|---|
-| `TrackingService` | Foreground service (type `location`). Feeds all events through one channel into a `Tracker`, records them, and schedules uploads. Fits the sensors to the mode: high accuracy every 5 s while moving, balanced every 5 min with a geofence while staying. Stopping from the app or the notification closes an open stay |
+| `TrackingService` | Foreground service (type `location`). Feeds all events through one channel into a `Tracker`, records them, and schedules uploads. Fits the sensors to the mode: high accuracy every second while moving, balanced every 5 min with a geofence while staying. Stopping from the app or the notification closes an open stay |
 | `ActivityTransitionReceiver` | Turns Play Services activity transitions into `ActivityChange` events |
 | `StayGeofence`, `GeofenceReceiver` | Geofence of radius `R_exit` around the stay anchor; an exit becomes a `GeofenceExit` event |
 | `WifiScanner` | Reads scan results as salted BSSID hashes, asks for a scan at most every 30 min while not moving |
@@ -68,13 +69,16 @@ Play Services are required for fused location and activity recognition.
 - Engine tests build synthetic days with `Scenario` (metre grid, activities, Wi-Fi, jitter) and assert on the result,
   including distance as Dawarich would compute it.
 - `TrackerTest` kills and restores the tracker after every event and migrates the first database schema.
-- Recorded real days: pull `recordings/*.jsonl` from the phone, then run them through `replay()`.
-  Labelled days should become regression tests.
+- Recorded real days: pull `recordings/*.jsonl` from the phone
+  (`adb shell cat /sdcard/Android/data/de.lukasrunge.verweil/files/recordings/<date>.jsonl > day.jsonl`),
+  then compare the track pipeline on them with `./gradlew :core:replay --args="day.jsonl --from 13:30 --to 13:40"`.
+  Recordings contain where you live; keep them out of the repository. Labelled days should become regression tests.
 
 ## Build
 
 ```sh
 ./gradlew :core:jvmTest              # engine, client and outbox tests
+./gradlew :core:replay --args="day.jsonl [--from HH:mm] [--to HH:mm] [--truth route.geojson]"
 ./gradlew :androidApp:assembleDebug  # APK in androidApp/build/outputs/apk/debug/
 ./gradlew :androidApp:lintDebug
 ```
