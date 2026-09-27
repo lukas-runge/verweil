@@ -6,7 +6,10 @@ import de.lukasrunge.verweil.core.model.ActivityChange
 import de.lukasrunge.verweil.core.model.EngineOutput
 import de.lukasrunge.verweil.core.model.Fix
 import de.lukasrunge.verweil.core.model.GeoPoint
+import de.lukasrunge.verweil.core.model.GeofenceExit
 import de.lukasrunge.verweil.core.model.SensorEvent
+import de.lukasrunge.verweil.core.model.Tick
+import de.lukasrunge.verweil.core.model.WifiScan
 import de.lukasrunge.verweil.core.upload.PointItem
 import de.lukasrunge.verweil.core.upload.toUploadItems
 import kotlin.math.PI
@@ -18,6 +21,7 @@ class Scenario(private val origin: GeoPoint = GeoPoint(52.5200, 13.4050)) {
     val events = mutableListOf<SensorEvent>()
     var nowMs = 1_790_000_000_000L
         private set
+    private var fed = 0
 
     fun at(eastM: Double, northM: Double): GeoPoint = GeoPoint(
         lat = origin.lat + northM / 111_320.0,
@@ -33,11 +37,28 @@ class Scenario(private val origin: GeoPoint = GeoPoint(52.5200, 13.4050)) {
         events += ActivityChange(nowMs, activity)
     }
 
+    fun wifi(vararg bssids: String) {
+        events += WifiScan(nowMs, bssids.toSet())
+    }
+
+    fun geofenceExit() {
+        events += GeofenceExit(nowMs)
+    }
+
+    fun tick() {
+        events += Tick(nowMs)
+    }
+
     fun advance(duration: Duration) {
         nowMs += duration.inWholeMilliseconds
     }
 
-    fun run(engine: StayEngine = StayEngine()): List<EngineOutput> = events.flatMap { engine.process(it) }
+    /** Feeds the events added since the last run, so a test can inspect the engine in between. */
+    fun run(engine: StayEngine = StayEngine()): List<EngineOutput> {
+        val new = events.drop(fed)
+        fed = events.size
+        return new.flatMap { engine.process(it) }
+    }
 }
 
 /** Distance as Dawarich computes it: the sum over consecutive uploaded points. */

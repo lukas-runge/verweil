@@ -13,7 +13,14 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlin.time.Instant
 
-class DawarichException(message: String) : Exception(message)
+/** [status] is the HTTP status when the server answered at all. */
+class DawarichException(message: String, val status: Int? = null) : Exception(message) {
+    /** The key or the proxy credentials were refused. Retrying the same data cannot help until they change. */
+    val isAuthError: Boolean get() = status == 401 || status == 403
+
+    /** The server refused this particular data. Retrying it cannot help; other data may still go through. */
+    val rejectsData: Boolean get() = status != null && status in 400..499 && !isAuthError && status != 408 && status != 429
+}
 
 /**
  * Talks to existing Dawarich APIs, so no server changes are needed:
@@ -70,7 +77,7 @@ class DawarichClient(
     )
 
     private suspend fun HttpResponse.requireSuccess() {
-        if (!status.isSuccess()) throw DawarichException("Dawarich answered ${status.value}: ${bodyAsText().take(500)}")
+        if (!status.isSuccess()) throw DawarichException("Dawarich answered ${status.value}: ${bodyAsText().take(500)}", status.value)
     }
 }
 

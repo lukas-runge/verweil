@@ -3,11 +3,16 @@ package de.lukasrunge.verweil.core.engine
 import de.lukasrunge.verweil.core.geo.distanceMeters
 import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.StayEnded
+import de.lukasrunge.verweil.core.model.StayHeartbeat
 import de.lukasrunge.verweil.core.model.StayStarted
 import de.lukasrunge.verweil.core.model.TrackPoint
+import de.lukasrunge.verweil.core.place.InMemoryPlaceStore
+import de.lukasrunge.verweil.core.place.PlaceMemory
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -127,6 +132,155 @@ class StayEngineTest {
         val out = s.run()
 
         assertTrue(out.filterIsInstance<TrackPoint>().all { it.fix.accuracy <= 35.0 })
+    }
+
+    @Test
+    fun longStayGetsHourlyHeartbeatsAtTheAnchor() {
+        val s = Scenario()
+        walkEast(s, fromM = 0.0, minutes = 2)
+        s.activity(Activity.STILL)
+        stayAt(s, eastM = 168.0, minutes = 180)
+
+        val out = s.run()
+
+        val anchor = out.filterIsInstance<StayStarted>().single().anchor
+        val heartbeats = out.filterIsInstance<StayHeartbeat>()
+        assertEquals(3, heartbeats.size)
+        assertTrue(heartbeats.all { it.anchor == anchor })
+        assertTrue(out.dawarichDistanceMeters() < 180.0, "heartbeats add no distance")
+    }
+
+    @Test
+    fun stoppingClosesAnOpenStayAtTheLastEvidence() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        val stillSince = s.nowMs
+        stayAt(s, eastM = 0.0, minutes = 30)
+        val lastFix = s.nowMs
+        s.advance(10.minutes)
+        s.tick()
+        val engine = StayEngine()
+        s.run(engine)
+
+        val ended = engine.finish().filterIsInstance<StayEnded>().single()
+
+        assertEquals(stillSince, ended.sinceMs)
+        assertEquals(lastFix, ended.untilMs)
+        assertEquals(Mode.MOVING, engine.mode)
+        assertNull(engine.stayAnchor)
+    }
+
+    @Test
+    fun aSavedStateContinuesWhereTheEngineStopped() {
+        val s = Scenario()
+        walkEast(s, fromM = 0.0, minutes = 2)
+        s.activity(Activity.STILL)
+        stayAt(s, eastM = 168.0, minutes = 20)
+        val first = StayEngine()
+        val beforeRestart = s.run(first)
+        s.activity(Activity.WALKING)
+        walkEast(s, fromM = 168.0, minutes = 5)
+
+        val saved = Json.encodeToString(EngineState.serializer(), first.state)
+        val afterRestart = s.run(StayEngine(initialState = Json.decodeFromString(EngineState.serializer(), saved)))
+
+        val uninterrupted = StayEngine().let { engine -> s.events.flatMap { engine.process(it) } }
+        assertEquals(uninterrupted, beforeRestart + afterRestart)
+        assertEquals(1, uninterrupted.filterIsInstance<StayEnded>().size)
+    }
+
+    @Test
+    fun theVisitUsesAllFixesOfTheStayNotOnlyTheFirstMinutes() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        // The first minutes are off by 40 m, then better fixes arrive.
+        stayAt(s, eastM = 40.0, minutes = 6, accuracy = 30.0)
+        stayAt(s, eastM = 0.0, minutes = 120, accuracy = 10.0)
+        s.activity(Activity.WALKING)
+        walkEast(s, fromM = 0.0, minutes = 3)
+
+        val ended = s.run().filterIsInstance<StayEnded>().single()
+
+        assertTrue(distanceMeters(ended.anchor, s.at(0.0, 0.0)) > 30.0)
+        assertTrue(distanceMeters(ended.center, s.at(0.0, 0.0)) < 5.0)
+    }
+
+    @Test
+    fun aGeofenceExitOnlyStartsLookingForADeparture() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        stayAt(s, eastM = 0.0, minutes = 20)
+        s.geofenceExit()
+        val engine = StayEngine()
+        s.run(engine)
+        assertEquals(Mode.LEAVING, engine.mode)
+
+        s.advance(4.minutes)
+        s.tick()
+        s.run(engine)
+
+        assertEquals(Mode.STAYING, engine.mode)
+    }
+
+    @Test
+    fun aDifferentWifiStartsLookingForADepartureButNoWifiDoesNot() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        stayAt(s, eastM = 0.0, minutes = 20, wifi = arrayOf("a", "b", "c"))
+        val engine = StayEngine()
+        s.wifi()
+        s.run(engine)
+        assertEquals(Mode.STAYING, engine.mode)
+
+        s.wifi("x", "y", "z")
+        s.run(engine)
+
+        assertEquals(Mode.LEAVING, engine.mode)
+    }
+
+    @Test
+    fun aKnownPlaceIsRecognisedByItsWifi() {
+        val places = PlaceMemory(InMemoryPlaceStore(), EngineConfig())
+        val firstDay = Scenario()
+        firstDay.activity(Activity.STILL)
+        stayAt(firstDay, eastM = 0.0, minutes = 60, wifi = arrayOf("a", "b", "c", "d"))
+        firstDay.activity(Activity.WALKING)
+        walkEast(firstDay, fromM = 0.0, minutes = 3)
+        val firstVisit = firstDay.run(StayEngine(places = places)).filterIsInstance<StayEnded>().single()
+
+        // Next day the fixes are 40 m off, but the Wi-Fi is the same.
+        val nextDay = Scenario()
+        nextDay.activity(Activity.STILL)
+        stayAt(nextDay, eastM = 40.0, minutes = 60, wifi = arrayOf("a", "b", "c", "d"))
+        val stay = nextDay.run(StayEngine(places = places)).filterIsInstance<StayStarted>().single()
+
+        assertEquals(firstVisit.center, stay.anchor)
+    }
+
+    @Test
+    fun aKnownWifiFarAwayIsNotTheSamePlace() {
+        val places = PlaceMemory(InMemoryPlaceStore(), EngineConfig())
+        // A hotspot on a train: same access points, different places.
+        val first = Scenario()
+        first.activity(Activity.STILL)
+        stayAt(first, eastM = 0.0, minutes = 30, wifi = arrayOf("train"))
+        StayEngine(places = places).let { engine -> first.run(engine) + engine.finish() }
+
+        val second = Scenario()
+        second.activity(Activity.STILL)
+        stayAt(second, eastM = 2_000.0, minutes = 30, wifi = arrayOf("train"))
+        val stay = second.run(StayEngine(places = places)).filterIsInstance<StayStarted>().single()
+
+        assertTrue(distanceMeters(stay.anchor, second.at(2_000.0, 0.0)) < 5.0)
+    }
+
+    /** Stays put with a fix every minute, and a Wi-Fi scan every ten when [wifi] is given. */
+    private fun stayAt(s: Scenario, eastM: Double, minutes: Int, accuracy: Double = 10.0, wifi: Array<String>? = null) {
+        repeat(minutes) {
+            s.advance(1.minutes)
+            s.fix(eastM = eastM, northM = 0.0, accuracy = accuracy)
+            if (wifi != null && it % 10 == 0) s.wifi(*wifi)
+        }
     }
 
     private fun walkEast(s: Scenario, fromM: Double, minutes: Int) {
