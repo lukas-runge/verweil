@@ -4,10 +4,12 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DatePicker
@@ -24,6 +26,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +55,7 @@ import de.lukasrunge.verweil.core.timeline.TimelineEntry
 import de.lukasrunge.verweil.core.timeline.mergeTimeline
 import de.lukasrunge.verweil.core.timeline.placeCount
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -61,7 +65,14 @@ import java.time.ZoneOffset
  * recognised since. Arrows step through the days, the date opens a calendar.
  */
 @Composable
-fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowMs: Long, lastUploadMs: Long?) {
+fun DaySection(
+    app: VerweilApp,
+    settings: SettingsValues,
+    running: Boolean,
+    nowMs: Long,
+    lastUploadMs: Long?,
+    pullRefresh: Int,
+) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
     val today = remember(nowMs) { LocalDate.now(zone) }
@@ -73,7 +84,7 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
 
     val phone by remember(epochDay) { app.journal.segmentsFlow(startMs, endMs, Dispatchers.IO) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs)
+    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs, pullRefresh = pullRefresh)
     val entries = remember(dawarich.entries, phone) { mergeTimeline(dawarich.entries.orEmpty(), phone) }
 
     // Names for stays only the phone knows; Dawarich names its own.
@@ -121,17 +132,31 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
         }
     }
 
-    if (dawarich.loading) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp))
-    } else {
-        Spacer(Modifier.height(4.dp))
-    }
-
+    // Right under the day: the summary, or while loading the bar in its place, so nothing below moves.
     // Places, not stays: the office before and after lunch is one place.
     val stays = entries.placeCount()
     val meters = entries.filterIsInstance<TimelineEntry.Move>().sumOf { it.distanceM }
-    if (entries.isNotEmpty()) {
-        Caption(pluralStringResource(R.plurals.timeline_summary, stays, stays, distance(meters)))
+    if (dawarich.loading || entries.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 24.dp)
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (dawarich.loading) {
+                LinearProgressIndicator(
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Text(
+                    pluralStringResource(R.plurals.timeline_summary, stays, stays, distance(meters)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
     dawarich.problem?.let { problem ->
         Caption(problemText(problem, dawarich.fetchedMs), color = MaterialTheme.colorScheme.secondary)
@@ -149,7 +174,8 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
             )
         }
     } else {
-        Spacer(Modifier.height(8.dp))
+        // Room for the first time, which sits half above the first row.
+        Spacer(Modifier.height(20.dp))
         Timeline(
             entries = entries,
             dayStartMs = startMs,
@@ -179,9 +205,11 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
 /**
  * Dawarich's timeline for the day: the cached copy at once, then a fresh one. Fetches again when the app comes
  * to the front and when [refreshKey] changes, e.g. after an upload, so today catches up with what was sent.
+ * Those fetches are silent; the loading bar shows only when the user pulled down ([pullRefresh] changed)
+ * or when there is nothing to show yet.
  */
 @Composable
-private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, refreshKey: Any?): DawarichDay {
+private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, refreshKey: Any?, pullRefresh: Int): DawarichDay {
     val source = remember { DawarichTimeline(app) }
     var state by remember(startMs) { mutableStateOf(DawarichDay(entries = null, fetchedMs = null, loading = true, problem = null)) }
     var resumed by remember { mutableLongStateOf(0L) }
@@ -189,16 +217,25 @@ private fun rememberDawarichDay(app: VerweilApp, startMs: Long, endMs: Long, ref
         resumed = System.currentTimeMillis()
         onPauseOrDispose { }
     }
-    LaunchedEffect(startMs, refreshKey, resumed) {
+    val handledPull = remember { mutableIntStateOf(pullRefresh) }
+    LaunchedEffect(startMs, refreshKey, resumed, pullRefresh) {
         // One effect, so a slow cache read can never overwrite a fresh answer.
         if (state.entries == null) {
-            source.cached(startMs)?.let { state = DawarichDay(it.entries, it.fetchedMs, loading = true, problem = null) }
+            source.cached(startMs)?.let { state = DawarichDay(it.entries, it.fetchedMs, loading = false, problem = null) }
         }
-        state = state.copy(loading = true)
-        state = source.fetch(startMs, endMs)
+        val visible = state.entries == null || pullRefresh != handledPull.intValue
+        handledPull.intValue = pullRefresh
+        state = state.copy(loading = visible)
+        val started = System.currentTimeMillis()
+        val fresh = source.fetch(startMs, endMs)
+        // A nearby server answers in a few milliseconds; the loading bar should still be seen.
+        if (visible) delay(MIN_LOADING_MS - (System.currentTimeMillis() - started))
+        state = fresh
     }
     return state
 }
+
+private const val MIN_LOADING_MS = 800L
 
 @Composable
 private fun problemText(problem: TimelineProblem, fetchedMs: Long?): String {

@@ -54,6 +54,7 @@ class DawarichClient(
         }.requireSuccess()
     }
 
+    /** Creates the stay as a suggested visit, which Dawarich names from its geocoder and the user can confirm. */
     suspend fun createVisit(visit: VisitItem) {
         val body = VisitRequest(
             VisitBody(

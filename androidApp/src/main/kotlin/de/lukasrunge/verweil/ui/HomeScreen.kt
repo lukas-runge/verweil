@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -92,6 +94,8 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
         }
     }
 
+    var pullRefresh by remember { mutableIntStateOf(0) }
+
     val scroll = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
@@ -107,20 +111,36 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
             )
         },
     ) { padding ->
-        Column(
+        // Pulling down loads Dawarich's timeline of the shown day again; nothing is sent. The indicator goes back
+        // on release, and the timeline shows its loading bar, the same as when the day first loads.
+        PullToRefreshBox(
+            isRefreshing = false,
+            onRefresh = { pullRefresh++ },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(bottom = 32.dp),
+                .padding(padding),
         ) {
-            Hero(app, status, settings, latest, nowMs, requests)
-            // Signing in again keeps the queue and tracking; the queue goes out once the key works.
-            Notices(requests, upload, onSignInAgain = { app.scope.launch { app.settings.signOut() } })
-            DaySection(app, settings, running = status.running, nowMs = nowMs, lastUploadMs = upload.lastSuccessMs)
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-            counts?.let { UploadSection(app, settings, it, upload) }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(bottom = 32.dp),
+            ) {
+                Hero(app, status, settings, latest, nowMs, requests)
+                // Signing in again keeps the queue and tracking; the queue goes out once the key works.
+                Notices(requests, upload, onSignInAgain = { app.scope.launch { app.settings.signOut() } })
+                DaySection(
+                    app,
+                    settings,
+                    running = status.running,
+                    nowMs = nowMs,
+                    lastUploadMs = upload.lastSuccessMs,
+                    pullRefresh = pullRefresh,
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                counts?.let { UploadSection(app, settings, it, upload) }
+            }
         }
     }
 }

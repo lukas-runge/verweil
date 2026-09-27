@@ -30,7 +30,7 @@ data class VisitItem(
 
 /**
  * Translates engine decisions into Dawarich data.
- * A stay becomes points at its anchor (arrival, hourly heartbeats, departure, so 0 km in between)
+ * A stay becomes points at its anchor (arrival, a heartbeat every 5 minutes, departure, so 0 km in between)
  * plus a visit at its refined centre.
  */
 fun EngineOutput.toUploadItems(): List<UploadItem> = when (this) {

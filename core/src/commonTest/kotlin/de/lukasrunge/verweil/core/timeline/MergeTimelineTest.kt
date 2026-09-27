@@ -68,15 +68,72 @@ class MergeTimelineTest {
         assertEquals(1, merged.placeCount())
     }
 
+    @Test
+    fun aStayDawarichDoesNotHaveFillsItsGap() {
+        // Dawarich's own visit detection replaced the stay with nothing; its tracks go on around it.
+        val dawarich = listOf(serverMove(0, 60), serverMove(160, 170))
+        val phone = listOf(stay(60, 155), move(155, 172, ongoing = true))
+
+        val merged = mergeTimeline(dawarich, phone)
+
+        val lost = merged.filterIsInstance<TimelineEntry.Stay>().single()
+        assertEquals(Source.PHONE_MISSING, lost.source)
+        assertEquals(minutes(60), lost.startMs)
+        assertEquals(listOf(minutes(0), minutes(60), minutes(160)), merged.map { it.startMs }, "in time order")
+    }
+
+    @Test
+    fun anOngoingWalkDawarichAlreadyTracksIsOneRow() {
+        val dawarich = listOf(serverStay(0, 60, "Zuhause"), serverMove(61, 63, meters = 300.0))
+        val phone = listOf(stay(0, 60), move(60, 65, ongoing = true, meters = 490.0))
+
+        val merged = mergeTimeline(dawarich, phone)
+
+        val walk = merged.last() as TimelineEntry.Move
+        assertEquals(2, merged.size, "no second walk next to Dawarich's")
+        assertTrue(walk.ongoing)
+        assertEquals(minutes(61), walk.startMs)
+        assertEquals(minutes(65), walk.endMs)
+        // Dawarich's 300 m, and the phone's distance for the two minutes Dawarich has not seen yet.
+        assertEquals(300.0 + 490.0 * 2 / 5, walk.distanceM, 0.1)
+    }
+
+    @Test
+    fun aStayOnlyPartlyInDawarichIsShownAndOlderEntriesKeepTheirEnd() {
+        // Dawarich's morning visit runs into the afternoon, across a walk; the phone saw a later stay of its own.
+        val dawarich = listOf(serverStay(0, 100, "Zuhause"), serverMove(50, 70), serverMove(150, 160))
+        val phone = listOf(stay(70, 145), move(145, 160))
+
+        val merged = mergeTimeline(dawarich, phone)
+
+        assertEquals(minutes(100), merged.first().endMs, "Dawarich's visit is not stretched")
+        val afternoon = merged.filterIsInstance<TimelineEntry.Stay>().single { it.source == Source.PHONE_MISSING }
+        assertEquals(minutes(70), afternoon.startMs)
+        assertEquals("Zuhause", afternoon.name)
+    }
+
+    @Test
+    fun aStayThatJustBeganIsShown() {
+        // Until its first heartbeat, an ongoing stay ends where it starts.
+        val dawarich = listOf(serverStay(0, 100, "Zuhause"), serverMove(150, 166))
+
+        val merged = mergeTimeline(dawarich, listOf(stay(166, 166, ongoing = true)))
+
+        val now = merged.last() as TimelineEntry.Stay
+        assertEquals(Source.PHONE, now.source)
+        assertTrue(now.ongoing)
+    }
+
     private fun minutes(m: Int) = m * 60_000L
 
     private fun stay(from: Int, to: Int, ongoing: Boolean = false, at: GeoPoint = here, name: String? = null) =
         Segment(0, SegmentKind.STAY, minutes(from), minutes(to), ongoing, at, 0.0, emptyMap(), name)
 
-    private fun move(from: Int, to: Int, ongoing: Boolean = false) =
-        Segment(0, SegmentKind.MOVE, minutes(from), minutes(to), ongoing, here, 900.0, mapOf(Activity.WALKING to 900.0), null)
+    private fun move(from: Int, to: Int, ongoing: Boolean = false, meters: Double = 900.0) =
+        Segment(0, SegmentKind.MOVE, minutes(from), minutes(to), ongoing, here, meters, mapOf(Activity.WALKING to meters), null)
 
     private fun serverStay(from: Int, to: Int, name: String) = TimelineEntry.Stay(minutes(from), minutes(to), here, name)
 
-    private fun serverMove(from: Int, to: Int) = TimelineEntry.Move(minutes(from), minutes(to), 1200.0, TravelMode.WALKING)
+    private fun serverMove(from: Int, to: Int, meters: Double = 1200.0) =
+        TimelineEntry.Move(minutes(from), minutes(to), meters, TravelMode.WALKING)
 }

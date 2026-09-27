@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -58,7 +59,7 @@ private sealed interface TimelineRow {
 /**
  * The day as a line: a stay is a solid block, a move a dotted path, a gap a faint dashed line.
  * [dayStartMs] clips entries that began the day before, so the first row starts at midnight.
- * With [markPending], entries only this phone knows say so: Dawarich does not show them yet.
+ * With [markPending], the phone's newest entries say that they are not in Dawarich yet.
  */
 @Composable
 fun Timeline(
@@ -72,10 +73,13 @@ fun Timeline(
 ) {
     val rows = remember(entries) {
         buildList {
-            entries.forEachIndexed { i, entry ->
-                val previous = entries.getOrNull(i - 1)
-                if (previous != null && entry.startMs - previous.endMs > GAP_MS) add(TimelineRow.Gap(previous.endMs, entry.startMs))
+            // Measured from the furthest end so far: a long stay can reach past the move listed after it.
+            var coveredUntil: Long? = null
+            entries.forEach { entry ->
+                val until = coveredUntil
+                if (until != null && entry.startMs - until > GAP_MS) add(TimelineRow.Gap(until, entry.startMs))
                 add(TimelineRow.Item(entry))
+                coveredUntil = maxOf(until ?: entry.endMs, entry.endMs)
             }
         }
     }
@@ -88,17 +92,53 @@ fun Timeline(
                     nowMs = nowMs,
                     // Only the newest entry can still be going on, and only while tracking runs.
                     live = live && row.entry.ongoing && i == rows.lastIndex,
-                    pending = markPending && row.entry.source == Source.PHONE,
+                    note = if (!markPending) null else when (row.entry.source) {
+                        Source.PHONE -> R.string.timeline_pending
+                        // What the phone saw where Dawarich has a hole just fills it; Dawarich keeps its own view.
+                        Source.PHONE_MISSING, Source.DAWARICH -> null
+                    },
                     onOpenMove = onOpenMove,
                 )
                 is TimelineRow.Gap -> GapRow(row)
             }
         }
+        // The last boundary: when the day's last stay or move ended, unless it is still going on.
+        val last = (rows.lastOrNull() as? TimelineRow.Item)?.entry
+        if (last != null && !last.ongoing) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .padding(horizontal = 24.dp),
+            ) {
+                BoundaryTime(last.endMs)
+            }
+        }
     }
 }
 
+/**
+ * A time on the boundary between two rows, where one stay or move hands over to the next:
+ * centred on the top edge of its row, taking no height of its own.
+ */
 @Composable
-private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, pending: Boolean, onOpenMove: () -> Unit) {
+private fun BoundaryTime(epochMs: Long) {
+    Text(
+        time(epochMs),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.End,
+        modifier = Modifier
+            .width(52.dp)
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minHeight = 0))
+                layout(placeable.width, 0) { placeable.place(0, -placeable.height / 2) }
+            },
+    )
+}
+
+@Composable
+private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, note: Int?, onOpenMove: () -> Unit) {
     val context = LocalContext.current
     val colors = LocalStateColors.current
     val endMs = if (live) nowMs else entry.endMs
@@ -126,15 +166,7 @@ private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boo
             .clickable(onClick = onClick)
             .padding(horizontal = 24.dp),
     ) {
-        Text(
-            time(startMs),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.End,
-            modifier = Modifier
-                .width(52.dp)
-                .padding(top = 12.dp),
-        )
+        BoundaryTime(startMs)
         Rail(
             kind = if (isStay) RailKind.Stay else RailKind.Move,
             color = if (isStay) colors.staying else colors.moving,
@@ -182,9 +214,9 @@ private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boo
                 }
             }
             Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (pending && !live) {
+            if (note != null && !live) {
                 Text(
-                    stringResource(R.string.timeline_pending),
+                    stringResource(note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline,
                 )
@@ -201,15 +233,16 @@ private fun GapRow(gap: TimelineRow.Gap) {
             .height(IntrinsicSize.Min)
             .heightIn(min = 44.dp)
             .padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("", modifier = Modifier.width(52.dp))
+        BoundaryTime(gap.fromMs)
         Rail(RailKind.Gap, MaterialTheme.colorScheme.outlineVariant, live = false, Modifier.width(40.dp).fillMaxHeight())
         Text(
             stringResource(R.string.timeline_gap, duration(gap.toMs - gap.fromMs)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .align(Alignment.CenterVertically),
         )
     }
 }
