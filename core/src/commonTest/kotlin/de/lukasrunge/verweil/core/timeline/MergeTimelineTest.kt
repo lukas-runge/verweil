@@ -57,10 +57,21 @@ class MergeTimelineTest {
         assertEquals(TravelMode.WALKING, walk.mode)
     }
 
+    @Test
+    fun aStayOfThePhoneTakesDawarichsNameForTheSamePlace() {
+        val dawarich = listOf(serverStay(0, 60, "13407 Klamannstraße 16 (House)"), serverMove(60, 120))
+        val nextDoor = GeoPoint(here.lat + 0.0003, here.lon)
+
+        val merged = mergeTimeline(dawarich, listOf(stay(120, 130, ongoing = true, at = nextDoor, name = "Klamannstraße 16, Berlin")))
+
+        assertEquals("13407 Klamannstraße 16 (House)", (merged.last() as TimelineEntry.Stay).name)
+        assertEquals(1, merged.placeCount())
+    }
+
     private fun minutes(m: Int) = m * 60_000L
 
-    private fun stay(from: Int, to: Int, ongoing: Boolean = false) =
-        Segment(0, SegmentKind.STAY, minutes(from), minutes(to), ongoing, here, 0.0, emptyMap(), null)
+    private fun stay(from: Int, to: Int, ongoing: Boolean = false, at: GeoPoint = here, name: String? = null) =
+        Segment(0, SegmentKind.STAY, minutes(from), minutes(to), ongoing, at, 0.0, emptyMap(), name)
 
     private fun move(from: Int, to: Int, ongoing: Boolean = false) =
         Segment(0, SegmentKind.MOVE, minutes(from), minutes(to), ongoing, here, 900.0, mapOf(Activity.WALKING to 900.0), null)

@@ -50,6 +50,7 @@ import de.lukasrunge.verweil.TimelineProblem
 import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
 import de.lukasrunge.verweil.core.timeline.mergeTimeline
+import de.lukasrunge.verweil.core.timeline.placeCount
 import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import java.time.ZoneId
@@ -127,9 +128,7 @@ fun DaySection(app: VerweilApp, settings: SettingsValues, running: Boolean, nowM
     }
 
     // Places, not stays: the office before and after lunch is one place.
-    val stays = entries.filterIsInstance<TimelineEntry.Stay>()
-        .distinctBy { it.name ?: it.point?.let { p -> "%.4f,%.4f".format(java.util.Locale.ROOT, p.lat, p.lon) } ?: it.startMs.toString() }
-        .size
+    val stays = entries.placeCount()
     val meters = entries.filterIsInstance<TimelineEntry.Move>().sumOf { it.distanceM }
     if (entries.isNotEmpty()) {
         Caption(pluralStringResource(R.plurals.timeline_summary, stays, stays, distance(meters)))

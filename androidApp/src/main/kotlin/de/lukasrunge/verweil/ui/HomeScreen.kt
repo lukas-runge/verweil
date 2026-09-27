@@ -63,6 +63,7 @@ import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.engine.Mode
 import de.lukasrunge.verweil.core.journal.Segment
 import de.lukasrunge.verweil.core.journal.SegmentKind
+import de.lukasrunge.verweil.core.timeline.nameNear
 import de.lukasrunge.verweil.core.timeline.toTravelMode
 import de.lukasrunge.verweil.core.upload.OutboxCounts
 import de.lukasrunge.verweil.locationSettingsIntent
@@ -71,6 +72,7 @@ import de.lukasrunge.verweil.upload.UploadWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -113,7 +115,7 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
                 .navigationBarsPadding()
                 .padding(bottom = 32.dp),
         ) {
-            Hero(status, settings, latest, nowMs, requests)
+            Hero(app, status, settings, latest, nowMs, requests)
             // Signing in again keeps the queue and tracking; the queue goes out once the key works.
             Notices(requests, upload, onSignInAgain = { app.scope.launch { app.settings.signOut() } })
             DaySection(app, settings, running = status.running, nowMs = nowMs, lastUploadMs = upload.lastSuccessMs)
@@ -125,13 +127,20 @@ fun HomeScreen(app: VerweilApp, settings: SettingsValues, onOpenSettings: () -> 
 
 /** The big statement at the top: the engine's state in words, with the one action that fits it. */
 @Composable
-private fun Hero(status: TrackingStatus, settings: SettingsValues, latest: Segment?, nowMs: Long, requests: AccessRequests) {
+private fun Hero(app: VerweilApp, status: TrackingStatus, settings: SettingsValues, latest: Segment?, nowMs: Long, requests: AccessRequests) {
     val context = LocalContext.current
     val colors = LocalStateColors.current
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     val access = requests.access
 
     val stay = latest?.takeIf { it.kind == SegmentKind.STAY && it.ongoing }
+    // The name the timeline shows: Dawarich's for a place it knows, otherwise the phone's.
+    val stayName by produceState(stay?.placeName, stay?.id, stay?.placeName, nowMs) {
+        val dayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        value = stay?.let { s ->
+            withContext(Dispatchers.IO) { app.timelineCache.get(dayStart) }?.entries?.nameNear(s.point) ?: s.placeName
+        }
+    }
     val move = latest?.takeIf { it.kind == SegmentKind.MOVE && it.ongoing }
     val running = status.running
     // While tracking runs the service watches the switch; otherwise it is checked when the app comes to the front.
@@ -144,7 +153,7 @@ private fun Hero(status: TrackingStatus, settings: SettingsValues, latest: Segme
         )
         running -> when (status.mode) {
             Mode.STAYING -> Triple(
-                stay?.placeName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.mode_staying),
+                stayName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.mode_staying),
                 stay?.let { stringResource(R.string.hero_since_for, time(it.startMs), duration(nowMs - it.startMs)) }
                     ?: stringResource(R.string.hero_staying_detail),
                 colors.staying,
