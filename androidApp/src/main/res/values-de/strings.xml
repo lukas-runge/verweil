@@ -66,7 +66,7 @@
     <string name="hero_no_signal">Gerade kein Standortsignal</string>
 
     <string name="stop_title">Tracking beenden?</string>
-    <string name="stop_text">Ein laufender Aufenthalt endet jetzt und geht an Dawarich. Das Tracking bleibt aus, bis du es wieder startest, auch nach einem Neustart.</string>
+    <string name="stop_text">Ein laufender Aufenthalt bleibt offen: Startest du innerhalb einer Stunde am selben Ort wieder, geht er weiter, sonst endet er bei seiner letzten Messung. Das Tracking bleibt aus, bis du es wieder startest, auch nach einem Neustart.</string>
 
     <string name="notice_auth_title">Dawarich lehnt den API-Schlüssel ab</string>
     <string name="notice_auth_text">Neue Standorte warten auf diesem Telefon, bis du dich neu anmeldest.</string>

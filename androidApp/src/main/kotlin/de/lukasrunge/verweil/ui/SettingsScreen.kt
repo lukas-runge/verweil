@@ -33,6 +33,7 @@ import de.lukasrunge.verweil.SettingsValues
 import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.dawarich.formatHeaderLines
 import de.lukasrunge.verweil.core.dawarich.parseHeaderLines
+import de.lukasrunge.verweil.core.tracking.Tracker
 import de.lukasrunge.verweil.tracking.TrackingService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -154,9 +155,11 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
             host = host,
             pending = pending,
             onSignOut = { discard ->
-                if (status.running) TrackingService.stop(context)
+                if (status.running) TrackingService.stop(context, closeStay = true)
                 app.scope.launch {
                     withContext(Dispatchers.IO) {
+                        // A stay paused by an earlier stop ends now, before anything goes to the next account.
+                        if (!status.running) Tracker(app.database).finish()
                         if (discard) app.outbox.clear()
                         // The next account has a different history.
                         app.timelineCache.clear()

@@ -131,8 +131,13 @@ That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-re
 - Without confirmation within `T_leave`, drop the evidence and go back to STAYING (it was jitter).
   Wi-Fi and geofence exits only start LEAVING; confirming still takes fixes.
 
-**Tracking stops:** an open stay ends at its last evidence of presence, buffered track points are released,
-and the next start begins in MOVING.
+**Tracking stops:** when stopping, nobody knows when tracking starts again, so an open stay is paused, not ended:
+nothing is sent, and the phone's timeline shows it ending at its last evidence of presence for now.
+The first event after the next start decides. Within `T_resume` (1 h) of that evidence, the stay goes on and the
+event is judged as ever, so a fix elsewhere starts the departure, backdated to the last presence.
+Later, the stay ends at that evidence and its departure point goes out with that old time; the event then starts
+afresh in MOVING. Stopping on the way ends like before: buffered track points are released, the next start
+begins in MOVING. Signing out ends an open or paused stay right away, so nothing of it reaches the next account.
 
 **Restarts:** the engine's whole state is saved together with the uploads of a step, in one transaction.
 Steps without uploads save it when the mode changes or at least every 30 s; with a fix every second,
