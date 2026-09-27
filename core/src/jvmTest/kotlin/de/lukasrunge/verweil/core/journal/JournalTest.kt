@@ -94,6 +94,27 @@ class JournalTest {
         assertEquals(0, journal.segments(0, Long.MAX_VALUE).size)
     }
 
+    @Test
+    fun aStayFromBeforeTheJournalIsAddedOnStart() {
+        val s = Scenario()
+        val tracker = Tracker(database)
+        s.activity(Activity.STILL)
+        stay(s, at = 0.0, minutes = 20)
+        s.events.forEach { tracker.process(it) }
+        val since = journal.latest()!!.startMs
+        // As if the stay began before the app had a journal.
+        journal.clear()
+
+        Tracker(database)
+
+        val stay = journal.segments(0, Long.MAX_VALUE).single()
+        assertEquals(SegmentKind.STAY, stay.kind)
+        assertTrue(stay.ongoing)
+        assertEquals(since, stay.startMs)
+        Tracker(database)
+        assertEquals(1, journal.segments(0, Long.MAX_VALUE).size, "added once")
+    }
+
     private fun stay(s: Scenario, at: Double, minutes: Int) {
         repeat(minutes) {
             s.advance(1.minutes)

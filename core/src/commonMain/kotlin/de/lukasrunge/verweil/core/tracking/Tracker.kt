@@ -6,10 +6,12 @@ import de.lukasrunge.verweil.core.engine.EngineState
 import de.lukasrunge.verweil.core.engine.Mode
 import de.lukasrunge.verweil.core.engine.StayEngine
 import de.lukasrunge.verweil.core.journal.Journal
+import de.lukasrunge.verweil.core.journal.SegmentKind
 import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.EngineOutput
 import de.lukasrunge.verweil.core.model.GeoPoint
 import de.lukasrunge.verweil.core.model.SensorEvent
+import de.lukasrunge.verweil.core.model.StayStarted
 import de.lukasrunge.verweil.core.place.PlaceMemory
 import de.lukasrunge.verweil.core.place.SqlPlaceStore
 import de.lukasrunge.verweil.core.upload.Outbox
@@ -46,6 +48,15 @@ class Tracker(
 
     private var savedMode: Mode? = null
     private var savedAtMs: Long? = null
+
+    init {
+        // A stay restored from an app version without the journal is missing from the timeline; add it.
+        val anchor = engine.stayAnchor
+        val latest = journal.latest()
+        if (anchor != null && (latest == null || !(latest.kind == SegmentKind.STAY && latest.ongoing))) {
+            journal.record(listOf(StayStarted(anchor, engine.state.staySinceMs)))
+        }
+    }
 
     fun process(event: SensorEvent): List<EngineOutput> = step(event.timeMs, force = false) { engine.process(event) }
 
