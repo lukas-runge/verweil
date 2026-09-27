@@ -248,8 +248,9 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 - Map matching. Off roads and paths, e.g. hiking or climbing, there is nothing to snap to,
   so it could only ever be optional server-side post-processing, e.g. with a self-hosted Valhalla (Meili).
 - Place naming, which Dawarich and its reverse geocoder already do.
-- Any UI beyond status, settings, a debug view and a timeline of the last days on the phone,
-  which shows what the engine decided so a day can be checked against memory. Dawarich is the UI.
+- Any UI beyond status, settings, a debug view and a timeline of any day. The timeline reads Dawarich's own
+  (`GET /api/v1/timeline`, Dawarich 1.3 and later) and adds what the phone recognised that Dawarich does not show
+  yet, such as the ongoing stay. Editing history stays in Dawarich.
 
 ## Open questions
 

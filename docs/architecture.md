@@ -22,11 +22,12 @@ That keeps the engine testable on a desktop JVM and identical on both platforms.
 | `engine` | `StayEngine`, the stay/move state machine; `EngineState`, its serializable memory; `EngineConfig` with its thresholds |
 | `place` | Wi-Fi fingerprints and `PlaceMemory`, which recognises known places and learns from every stay; stored in SQLite or in memory for replays |
 | `track` | `TrackSimplifier`, streaming Douglas–Peucker, and `TrackSmoother`, a constant-velocity Kalman filter with Doppler velocity (off by default, for replays); both part of `EngineState` |
-| `journal` | `Journal`: the engine's decisions as a timeline of stays and moves with their distance, for the app to show; kept 30 days on the device |
+| `journal` | `Journal`: the engine's decisions as stays and moves with their distance; kept 30 days on the device |
+| `timeline` | `TimelineEntry` (stay or move with mode of travel), `mergeTimeline`: Dawarich's timeline of a day followed by what the phone recognised since; `TimelineCache` keeps every fetched day for offline use |
 | `tracking` | `Tracker`: the engine with a memory. Restores the saved state and stores it with the uploads of a step in one transaction; steps without uploads save on mode changes or every 30 s |
 | `geo` | Distance and accuracy-weighted median |
 | `upload` | Mapping engine output to Dawarich items; `Outbox`, the persistent upload queue, which sets aside data the server refuses |
-| `dawarich` | `DawarichClient` for the Overland batch and visits APIs; `DawarichAuth` for sign-in (mobile auth API, API key check, QR code) |
+| `dawarich` | `DawarichClient` for the Overland batch and visits APIs and the timeline API (Dawarich 1.3 and later); `DawarichAuth` for sign-in (mobile auth API, API key check, QR code) |
 | `replay` | `EventLog` (JSONL recording format) and `replay()` for tuning on recorded days; on the JVM, `ReplayTool` compares track pipeline variants as GeoJSON (`./gradlew :core:replay`) |
 
 Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulatorArm64`.
@@ -54,7 +55,7 @@ Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulator
 | `Notifications` | The ongoing tracking notification (state and "since") and alerts: tracking interrupted, API key refused |
 | `PlaceNames` | Names stays in the timeline with the phone's `Geocoder`, if the user allows it |
 | `Settings` | DataStore: server URL, API key, account email, custom headers, device ID, raw recording, place names, tracking on/off, setup done, upload outcome, Wi-Fi hash salt |
-| `ui` | Compose, one activity. `LoginScreen` (Cloud with email and 2FA, self-hosted with QR code or manual setup), `SetupScreen` (the permissions one by one, with reasons), `HomeScreen` (state, what needs fixing, the day's timeline, upload), `SettingsScreen`, `DiagnosticsScreen` (engine, sensors, queue, recordings). Theme: moss for staying, ochre for moving, Bricolage Grotesque for headings; English and German |
+| `ui` | Compose, one activity. `LoginScreen` (Cloud with email and 2FA, self-hosted with QR code or manual setup), `SetupScreen` (the permissions one by one, with reasons), `HomeScreen` (state, what needs fixing, any day's timeline from Dawarich with the phone's newest entries, upload), `SettingsScreen`, `DiagnosticsScreen` (engine, sensors, queue, recordings). Theme: moss for staying, ochre for moving, Bricolage Grotesque for headings; English and German |
 
 Minimum Android 10 (API 29); compile and target SDK 37.
 Play Services are required for fused location and activity recognition.
