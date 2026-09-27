@@ -22,7 +22,7 @@ Early prototype.
 | Sign-in: Dawarich Cloud (email, 2FA), self-hosted (QR code, manual setup with proxy headers) | Done, tested against mocks |
 | Raw event recording (JSONL) and replay | Done |
 | Android: foreground service, fused location, activity recognition, upload worker, settings UI | First version, not yet tried on a device |
-| Kalman smoothing, anchor refinement, Wi-Fi place memory | Planned |
+| Anchor refinement, Wi-Fi place memory | Planned |
 | iOS app | Planned; `core` already compiles for iOS |
 
 ## Build

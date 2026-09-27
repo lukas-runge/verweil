@@ -112,7 +112,6 @@ That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-re
 
 - Drop fixes with accuracy worse than `A_good`.
 - Drop fixes whose implied speed from the last accepted fix is implausible for the current activity.
-- Smooth with a small constant-velocity Kalman filter.
 - Forward a point when it is at least `D_min` from the last forwarded point.
 
 ### Initial parameters
@@ -184,6 +183,10 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 
 ## Non-goals for v1
 
+- Kalman smoothing of track points. The Fused Location Provider already fuses GNSS, Wi-Fi, cell and inertial sensors,
+  and there is no evidence that Timeline smooths on top of that; it simplifies paths and snaps them to roads instead.
+  Phantom distance comes from stationary jitter, which the state machine handles.
+  Revisit only if recorded days show jagged movement tracks.
 - Map matching. Planned later as optional server-side post-processing with a self-hosted Valhalla (Meili).
 - Place naming, which Dawarich and its reverse geocoder already do.
 - Any UI beyond status, settings and a debug view. Dawarich is the UI.
