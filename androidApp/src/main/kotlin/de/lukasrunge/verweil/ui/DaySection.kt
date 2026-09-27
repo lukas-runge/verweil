@@ -168,7 +168,8 @@ fun DaySection(
             )
         }
     } else {
-        Spacer(Modifier.height(8.dp))
+        // Room for the first time, which sits half above the first row.
+        Spacer(Modifier.height(20.dp))
         Timeline(
             entries = entries,
             dayStartMs = startMs,

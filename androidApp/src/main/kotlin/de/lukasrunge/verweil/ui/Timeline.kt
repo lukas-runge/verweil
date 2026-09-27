@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -101,7 +102,39 @@ fun Timeline(
                 is TimelineRow.Gap -> GapRow(row)
             }
         }
+        // The last boundary: when the day's last stay or move ended, unless it is still going on.
+        val last = (rows.lastOrNull() as? TimelineRow.Item)?.entry
+        if (last != null && !last.ongoing) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .padding(horizontal = 24.dp),
+            ) {
+                BoundaryTime(last.endMs)
+            }
+        }
     }
+}
+
+/**
+ * A time on the boundary between two rows, where one stay or move hands over to the next:
+ * centred on the top edge of its row, taking no height of its own.
+ */
+@Composable
+private fun BoundaryTime(epochMs: Long) {
+    Text(
+        time(epochMs),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.End,
+        modifier = Modifier
+            .width(52.dp)
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minHeight = 0))
+                layout(placeable.width, 0) { placeable.place(0, -placeable.height / 2) }
+            },
+    )
 }
 
 @Composable
@@ -133,15 +166,7 @@ private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boo
             .clickable(onClick = onClick)
             .padding(horizontal = 24.dp),
     ) {
-        Text(
-            time(startMs),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.End,
-            modifier = Modifier
-                .width(52.dp)
-                .padding(top = 12.dp),
-        )
+        BoundaryTime(startMs)
         Rail(
             kind = if (isStay) RailKind.Stay else RailKind.Move,
             color = if (isStay) colors.staying else colors.moving,
@@ -208,15 +233,16 @@ private fun GapRow(gap: TimelineRow.Gap) {
             .height(IntrinsicSize.Min)
             .heightIn(min = 44.dp)
             .padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("", modifier = Modifier.width(52.dp))
+        BoundaryTime(gap.fromMs)
         Rail(RailKind.Gap, MaterialTheme.colorScheme.outlineVariant, live = false, Modifier.width(40.dp).fillMaxHeight())
         Text(
             stringResource(R.string.timeline_gap, duration(gap.toMs - gap.fromMs)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .align(Alignment.CenterVertically),
         )
     }
 }
