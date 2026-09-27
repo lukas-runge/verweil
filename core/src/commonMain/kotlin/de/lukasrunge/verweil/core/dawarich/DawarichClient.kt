@@ -118,8 +118,9 @@ private fun TimelineEntryDto.toEntry(): TimelineEntry? = when (type) {
         endMs = endedAt.toEpochMs(),
         point = place?.let { p -> if (p.lat != null && p.lng != null) GeoPoint(p.lat, p.lng) else null }
             ?: area?.let { a -> if (a.lat != null && a.lng != null) GeoPoint(a.lat, a.lng) else null },
-        // The visits Verweil creates are called "Suggested place" until Dawarich finds the place.
-        name = place?.name ?: area?.name ?: name?.takeIf { it != SUGGESTED_PLACE },
+        // Dawarich's own order (TimelineHelper#visit_entry_display_name), so a visit renamed in Dawarich shows renamed.
+        // Verweil's visits are called "Suggested place"; at a place Dawarich already knows they keep that name.
+        name = listOf(name, place?.name, area?.name).firstOrNull { !it.isNullOrBlank() && it != SUGGESTED_PLACE },
         visitId = visitId,
     )
     // Stationary tracks are stays Dawarich did not make a visit of; the visits already cover them.

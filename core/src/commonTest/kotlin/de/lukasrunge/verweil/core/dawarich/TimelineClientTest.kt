@@ -43,7 +43,7 @@ class TimelineClientTest {
         assertEquals(3, entries.size, "declined visit and stationary track are left out")
         val (home, walk, office) = entries
         home as TimelineEntry.Stay
-        assertEquals("Zuhause", home.name)
+        assertEquals("Home", home.name, "the visit's name comes first, as in Dawarich")
         assertEquals(GeoPoint(52.52, 13.405), home.point)
         assertEquals(7, home.visitId)
         walk as TimelineEntry.Move
@@ -51,7 +51,7 @@ class TimelineClientTest {
         assertEquals(2100.0, walk.distanceM)
         assertEquals(kotlin.time.Instant.parse("2026-09-27T09:22:00+02:00").toEpochMilliseconds(), walk.startMs)
         office as TimelineEntry.Stay
-        assertEquals(null, office.name, "\"Suggested place\" is not a name")
+        assertEquals("Büro", office.name, "\"Suggested place\" is not a name; the place's is")
     }
 
     @Test
@@ -90,7 +90,8 @@ class TimelineClientTest {
               {"type": "journey", "track_id": 2, "started_at": "2026-09-27T09:40:00+02:00",
                "ended_at": "2026-09-27T09:45:00+02:00", "distance": 0.3, "distance_unit": "km", "dominant_mode": "stationary"},
               {"type": "visit", "visit_id": 8, "name": "Suggested place", "status": "suggested",
-               "started_at": "2026-09-27T09:40:00+02:00", "ended_at": "2026-09-27T17:05:00+02:00", "place": null, "area": null},
+               "started_at": "2026-09-27T09:40:00+02:00", "ended_at": "2026-09-27T17:05:00+02:00",
+               "place": {"name": "Büro", "lat": 52.5219, "lng": 13.4132}, "area": null},
               {"type": "visit", "visit_id": 9, "name": "Bakery", "status": "declined",
                "started_at": "2026-09-27T17:10:00+02:00", "ended_at": "2026-09-27T17:20:00+02:00", "place": null}
             ]}]}
