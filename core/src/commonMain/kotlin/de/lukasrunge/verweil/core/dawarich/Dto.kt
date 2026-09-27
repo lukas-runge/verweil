@@ -32,23 +32,7 @@ internal data class OverlandProperties(
     @SerialName("device_id") val deviceId: String? = null,
 )
 
-// Visits API: app/controllers/api/v1/visits_controller.rb#visit_params.
-
-@Serializable
-internal data class VisitRequest(val visit: VisitBody)
-
-@Serializable
-internal data class VisitBody(
-    val latitude: Double,
-    val longitude: Double,
-    @SerialName("started_at") val startedAt: String,
-    @SerialName("ended_at") val endedAt: String,
-    /** Dawarich requires a name; with status "suggested" it reverse-geocodes a real one for new places. */
-    val name: String = SUGGESTED_PLACE,
-    val status: String = "suggested",
-)
-
-/** The name Verweil gives its visits; Dawarich shows the place it finds instead. */
+/** Dawarich's placeholder name for a visit at a place it has not named yet; not a name to show. */
 internal const val SUGGESTED_PLACE = "Suggested place"
 
 // Mobile auth API: app/controllers/api/v1/auth/{sessions,otp_challenges,base}_controller.rb.

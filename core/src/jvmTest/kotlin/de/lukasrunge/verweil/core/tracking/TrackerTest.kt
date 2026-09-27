@@ -45,7 +45,7 @@ class TrackerTest {
     }
 
     @Test
-    fun finishingQueuesTheVisitAndForgetsTheStay() {
+    fun finishingQueuesTheDepartureAndForgetsTheStay() {
         val s = Scenario()
         s.activity(Activity.STILL)
         stay(s, minutes = 20, wifi = true)
@@ -55,8 +55,9 @@ class TrackerTest {
         tracker.finish()
 
         assertEquals(Mode.MOVING, Tracker(database).mode)
-        // Arrival point, a heartbeat every 5 minutes of the 15 after arrival, departure point and the visit.
-        assertEquals(6, Outbox(database).counts().pending)
+        // Arrival point, a heartbeat every 5 minutes of the 15 after arrival and the departure point. No visit:
+        // Dawarich detects the stay from these points itself.
+        assertEquals(5, Outbox(database).counts().pending)
         assertEquals(1, SqlPlaceStore(database).all().size)
     }
 

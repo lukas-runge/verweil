@@ -7,9 +7,7 @@ import de.lukasrunge.verweil.core.model.StayHeartbeat
 import de.lukasrunge.verweil.core.model.StayStarted
 import de.lukasrunge.verweil.core.model.TrackPoint
 
-/** What ends up in Dawarich. */
-sealed interface UploadItem
-
+/** A point as it ends up in Dawarich. */
 data class PointItem(
     val timeMs: Long,
     val lat: Double,
@@ -19,21 +17,14 @@ data class PointItem(
     val altitude: Double? = null,
     /** Overland motion value: stationary, walking, running, cycling, driving. */
     val motion: String? = null,
-) : UploadItem
-
-data class VisitItem(
-    val lat: Double,
-    val lon: Double,
-    val startedMs: Long,
-    val endedMs: Long,
-) : UploadItem
+)
 
 /**
- * Translates engine decisions into Dawarich data.
- * A stay becomes points at its anchor (arrival, a heartbeat every 5 minutes, departure, so 0 km in between)
- * plus a visit at its refined centre.
+ * Translates engine decisions into the points Dawarich gets.
+ * A stay becomes points at its anchor (arrival, a heartbeat every 5 minutes, departure, so 0 km in between).
+ * Verweil sends no visits: Dawarich detects the stay from these points itself (see docs/concept.md).
  */
-fun EngineOutput.toUploadItems(): List<UploadItem> = when (this) {
+fun EngineOutput.toUploadItems(): List<PointItem> = when (this) {
     is TrackPoint -> listOf(
         PointItem(
             timeMs = fix.timeMs,
@@ -56,7 +47,6 @@ fun EngineOutput.toUploadItems(): List<UploadItem> = when (this) {
 
     is StayEnded -> listOf(
         PointItem(timeMs = untilMs, lat = anchor.lat, lon = anchor.lon, motion = STATIONARY),
-        VisitItem(lat = center.lat, lon = center.lon, startedMs = sinceMs, endedMs = untilMs),
     )
 }
 

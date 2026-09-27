@@ -21,16 +21,8 @@ data class OutboxCounts(
 class Outbox(database: VerweilDatabase) {
     private val queries = database.outboxQueries
 
-    fun add(items: List<UploadItem>) = queries.transaction {
-        items.forEach { item ->
-            when (item) {
-                is PointItem -> queries.insertPoint(
-                    item.timeMs, item.lat, item.lon, item.accuracy, item.speed, item.altitude, item.motion,
-                )
-
-                is VisitItem -> queries.insertVisit(item.lat, item.lon, item.startedMs, item.endedMs)
-            }
-        }
+    fun add(points: List<PointItem>) = queries.transaction {
+        points.forEach { queries.insertPoint(it.timeMs, it.lat, it.lon, it.accuracy, it.speed, it.altitude, it.motion) }
     }
 
     fun counts(): OutboxCounts = queries.counts().executeAsOne().toCounts()
@@ -45,13 +37,13 @@ class Outbox(database: VerweilDatabase) {
     fun retryRejected() = queries.retryRejected()
 
     /**
-     * Sends everything queued, oldest first. Points go before visits, so a visit never precedes its data.
+     * Sends everything queued, oldest first.
      *
      * Data the server refuses (a 4xx other than auth or rate limiting) is set aside with its error,
      * so it cannot block the queue. Any other failure stops the flush and leaves the rest queued,
      * so the caller can simply retry later.
      *
-     * Returns how many points and visits Dawarich accepted.
+     * Returns how many points Dawarich accepted.
      */
     suspend fun flush(client: DawarichClient, batchSize: Long = 500): Int {
         var sent = 0
@@ -68,17 +60,6 @@ class Outbox(database: VerweilDatabase) {
             } catch (e: DawarichException) {
                 if (!e.rejectsData) throw e
                 queries.rejectPoints(e.message, ids)
-            }
-        }
-        while (true) {
-            val visit = queries.oldestVisit().executeAsOneOrNull() ?: break
-            try {
-                client.createVisit(VisitItem(visit.lat, visit.lon, visit.started_ms, visit.ended_ms))
-                queries.deleteVisit(visit.id)
-                sent++
-            } catch (e: DawarichException) {
-                if (!e.rejectsData) throw e
-                queries.rejectVisit(e.message, visit.id)
             }
         }
         return sent
