@@ -19,6 +19,7 @@ Early prototype.
 |---|---|
 | Stay/move state machine (`core/engine`) | First version with tests; thresholds not yet tuned on real days |
 | Dawarich upload: Overland points and visits, persistent outbox | Done, tested against mocks |
+| Sign-in: Dawarich Cloud (email, 2FA), self-hosted (QR code, manual setup with proxy headers) | Done, tested against mocks |
 | Raw event recording (JSONL) and replay | Done |
 | Android: foreground service, fused location, activity recognition, upload worker, settings UI | First version, not yet tried on a device |
 | Kalman smoothing, anchor refinement, Wi-Fi place memory | Planned |
@@ -36,7 +37,10 @@ Needs JDK 21 and the Android SDK.
 ## Setup on the phone
 
 1. Install the debug APK.
-2. In Dawarich, copy your API key from the account settings.
-3. In Verweil, enter the Dawarich URL and API key.
-4. Grant location and activity access, then "Allow location all the time".
-5. Start tracking. Disable other trackers that send to the same Dawarich account.
+2. Sign in, the same ways the official Dawarich app offers:
+   - **Dawarich Cloud:** email and password; accounts with two-factor authentication get a code step.
+   - **Self-hosted:** in Dawarich, open Account → API access. Scan the QR code there, or enter the server URL
+     and API key by hand. Manual setup also takes custom headers for servers behind an authenticating
+     reverse proxy (Cloudflare Access, Pangolin).
+3. Grant location and activity access, then "Allow location all the time".
+4. Start tracking. Disable other trackers that send to the same Dawarich account.

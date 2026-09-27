@@ -22,20 +22,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,13 +58,16 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MainScreen(app: VerweilApp) {
+    val saved by app.settings.values.collectAsStateWithLifecycle(initialValue = null)
+    val settings = saved ?: return
+    if (settings.isConfigured) TrackingScreen(app, settings) else LoginScreen(app.settings)
+}
+
+@Composable
+private fun TrackingScreen(app: VerweilApp, settings: SettingsValues) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val status by app.status.collectAsStateWithLifecycle()
-    val saved by app.settings.values.collectAsStateWithLifecycle(initialValue = null)
-
-    var serverUrl by rememberSaveable(saved) { mutableStateOf(saved?.serverUrl.orEmpty()) }
-    var apiKey by rememberSaveable(saved) { mutableStateOf(saved?.apiKey.orEmpty()) }
 
     // Bumped after every permission dialog so the checks below run again.
     var permissionRound by remember { mutableIntStateOf(0) }
@@ -92,26 +91,11 @@ private fun MainScreen(app: VerweilApp) {
         Text("Verweil", style = MaterialTheme.typography.headlineMedium)
         Text(status.describe())
 
-        OutlinedTextField(
-            value = serverUrl,
-            onValueChange = { serverUrl = it },
-            label = { Text("Dawarich URL") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+        Text(
+            if (settings.email.isBlank()) "Connected to ${settings.serverUrl}"
+            else "Signed in as ${settings.email} on ${settings.serverUrl}",
         )
-        OutlinedTextField(
-            value = apiKey,
-            onValueChange = { apiKey = it },
-            label = { Text("API key") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(onClick = {
-            scope.launch {
-                app.settings.save((saved ?: SettingsValues()).copy(serverUrl = serverUrl, apiKey = apiKey))
-            }
-        }) { Text("Save") }
+        OutlinedButton(onClick = { scope.launch { app.settings.signOut() } }) { Text("Sign out") }
 
         if (!hasLocation) {
             Button(onClick = { foregroundLauncher.launch(foregroundPermissions()) }) {
