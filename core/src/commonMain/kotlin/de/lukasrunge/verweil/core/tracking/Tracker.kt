@@ -11,6 +11,7 @@ import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.EngineOutput
 import de.lukasrunge.verweil.core.model.GeoPoint
 import de.lukasrunge.verweil.core.model.SensorEvent
+import de.lukasrunge.verweil.core.model.StayEnded
 import de.lukasrunge.verweil.core.model.StayStarted
 import de.lukasrunge.verweil.core.place.PlaceMemory
 import de.lukasrunge.verweil.core.place.SqlPlaceStore
@@ -51,14 +52,35 @@ class Tracker(
 
     init {
         // A stay restored from an app version without the journal is missing from the timeline; add it.
+        // A paused one is not ongoing on purpose.
         val anchor = engine.stayAnchor
         val latest = journal.latest()
-        if (anchor != null && (latest == null || !(latest.kind == SegmentKind.STAY && latest.ongoing))) {
+        if (anchor != null && !engine.paused && (latest == null || !(latest.kind == SegmentKind.STAY && latest.ongoing))) {
             journal.record(listOf(StayStarted(anchor, engine.state.staySinceMs)))
         }
     }
 
-    fun process(event: SensorEvent): List<EngineOutput> = step(event.timeMs, force = false) { engine.process(event) }
+    fun process(event: SensorEvent): List<EngineOutput> {
+        val resuming = engine.paused
+        return step(event.timeMs, force = resuming) {
+            val outputs = engine.process(event)
+            // The paused stay goes on: on the timeline, too.
+            val anchor = engine.stayAnchor
+            if (resuming && anchor != null && outputs.none { it is StayEnded }) journal.resumeStay(anchor, engine.state.staySinceMs)
+            outputs
+        }
+    }
+
+    /**
+     * Tracking stops for now. An open stay stays open and nothing is sent: it goes on or ends when tracking starts
+     * again, see [StayEngine.pause]. Until then the timeline shows it ending at its last evidence.
+     */
+    fun pause(nowMs: Long): List<EngineOutput> {
+        val staying = engine.stayAnchor != null
+        return step(maxOf(nowMs, savedAtMs ?: nowMs), force = true) { engine.pause(nowMs) }.also {
+            if (staying) journal.pauseStay(engine.state.lastPresenceMs) else journal.endOngoing()
+        }
+    }
 
     /** Tracking stops: closes an open stay and starts over next time. */
     fun finish(): List<EngineOutput> =

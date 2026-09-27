@@ -65,6 +65,9 @@ class EngineState(
     var leaveSinceMs: Long = 0,
     val exitFixes: MutableList<Fix> = mutableListOf(),
     val leavingTrack: MutableList<Fix> = mutableListOf(),
+
+    /** Tracking stopped during the stay at this time; whether the stay goes on is decided when it starts again. */
+    var pausedAtMs: Long? = null,
 )
 
 /**
@@ -89,8 +92,12 @@ class StayEngine(
     /** Where the current stay is pinned, while there is one. */
     val stayAnchor: GeoPoint? get() = s.anchor.takeIf { s.mode == Mode.STAYING || s.mode == Mode.LEAVING }
 
+    /** Tracking stopped during a stay, which goes on or ends with the next event. */
+    val paused: Boolean get() = s.pausedAtMs != null
+
     fun process(event: SensorEvent): List<EngineOutput> {
         val out = mutableListOf<EngineOutput>()
+        if (paused) resume(event.timeMs, out)
         when (event) {
             is Fix -> onFix(event, out)
             is ActivityChange -> onActivity(event, out)
@@ -100,6 +107,30 @@ class StayEngine(
         }
         onTime(event.timeMs, out)
         return out
+    }
+
+    /**
+     * Tracking stops for now, e.g. for the night. A stay stays open without a word to anyone: when tracking starts
+     * again, the stay goes on or ends at its last evidence ([resume]). Anything else ends as in [finish].
+     */
+    fun pause(nowMs: Long): List<EngineOutput> {
+        if (s.mode != Mode.STAYING && s.mode != Mode.LEAVING) return finish()
+        // An unconfirmed departure is decided afresh by what comes after the pause.
+        backToStaying()
+        s.pausedAtMs = nowMs
+        return emptyList()
+    }
+
+    /**
+     * The first event after a pause: soon enough after the stay's last evidence, the stay goes on and the event
+     * decides as ever whether the user is still there. Later, the stay ends at that evidence, not now.
+     */
+    private fun resume(nowMs: Long, out: MutableList<EngineOutput>) {
+        s.pausedAtMs = null
+        if (nowMs - s.lastPresenceMs <= config.resumeWindow.inWholeMilliseconds) return
+        val activity = s.activity
+        out += finish()
+        s.activity = activity
     }
 
     /**

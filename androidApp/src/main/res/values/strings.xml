@@ -68,7 +68,7 @@
     <string name="hero_no_signal">No location signal right now</string>
 
     <string name="stop_title">Stop tracking?</string>
-    <string name="stop_text">An ongoing stay ends now and goes to Dawarich. Tracking stays off until you start it again, also after a restart.</string>
+    <string name="stop_text">An ongoing stay stays open: start again within an hour at the same place and it goes on, otherwise it ends at its last measurement. Tracking stays off until you start it again, also after a restart.</string>
 
     <string name="notice_auth_title">Dawarich refuses the API key</string>
     <string name="notice_auth_text">New locations wait on this phone until you sign in again.</string>

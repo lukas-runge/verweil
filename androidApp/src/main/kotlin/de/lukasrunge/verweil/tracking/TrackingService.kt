@@ -93,6 +93,10 @@ class TrackingService : LifecycleService() {
     @Volatile
     private var stopRequested = false
 
+    /** Stopping ends an open stay right away, e.g. on sign-out, instead of pausing it. */
+    @Volatile
+    private var closeStay = false
+
     @Volatile
     private var recordRawEvents = false
 
@@ -128,7 +132,7 @@ class TrackingService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         if (intent?.action == ACTION_STOP) {
-            requestStop()
+            requestStop(closeStay = intent.getBooleanExtra(EXTRA_CLOSE_STAY, false))
             return START_NOT_STICKY
         }
         if (started) return START_STICKY
@@ -196,14 +200,15 @@ class TrackingService : LifecycleService() {
         super.onDestroy()
     }
 
-    /** The event loop drains what is queued, closes an open stay and then stops the service. */
-    private fun requestStop() {
+    /** The event loop drains what is queued, pauses or closes an open stay and then stops the service. */
+    private fun requestStop(closeStay: Boolean) {
         app.scope.launch { app.settings.setTrackingEnabled(false) }
         TrackingWatchdog.cancel(this)
         if (!started) {
             stopSelf()
             return
         }
+        this.closeStay = closeStay
         stopRequested = true
         events.close()
     }
@@ -217,7 +222,8 @@ class TrackingService : LifecycleService() {
             adapt(tracker, event.timeMs)
         }
         if (stopRequested) {
-            if (tracker.finish().isNotEmpty()) UploadWorker.enqueue(this)
+            val outputs = if (closeStay) tracker.finish() else tracker.pause(System.currentTimeMillis())
+            if (outputs.isNotEmpty()) UploadWorker.enqueue(this)
             geofence.moveTo(null)
             withContext(Dispatchers.Main) { stopSelf() }
         }
@@ -340,6 +346,7 @@ class TrackingService : LifecycleService() {
         private const val TAG = "TrackingService"
         private const val TICK_INTERVAL_MS = 60_000L
         private const val ACTION_STOP = "de.lukasrunge.verweil.STOP"
+        private const val EXTRA_CLOSE_STAY = "close_stay"
 
         /** The timeline on the phone covers this long; Dawarich keeps the history. */
         private val JOURNAL_KEEP_MS = 30.days.inWholeMilliseconds
@@ -360,9 +367,14 @@ class TrackingService : LifecycleService() {
             }
         }
 
-        /** Closes an open stay, queues it for upload and stops. Tracking stays off after a reboot. */
-        fun stop(context: Context) {
-            context.startService(Intent(context, TrackingService::class.java).setAction(ACTION_STOP))
+        /**
+         * Stops tracking; it stays off after a reboot. An open stay is paused, see [Tracker.pause], or with
+         * [closeStay] ends now and is queued for upload.
+         */
+        fun stop(context: Context, closeStay: Boolean = false) {
+            context.startService(
+                Intent(context, TrackingService::class.java).setAction(ACTION_STOP).putExtra(EXTRA_CLOSE_STAY, closeStay),
+            )
         }
     }
 }

@@ -61,6 +61,18 @@ class Journal(database: VerweilDatabase) {
     /** Tracking stopped: nothing is ongoing any more. */
     fun endOngoing() = queries.endOngoing()
 
+    /** Tracking paused during a stay: it ends for now at its last evidence, [untilMs]. */
+    fun pauseStay(untilMs: Long) {
+        latestOngoing(SegmentKind.STAY)?.let { update(it.copy(endMs = maxOf(it.endMs, untilMs), ongoing = false)) }
+        queries.endOngoing()
+    }
+
+    /** Tracking resumed and the paused stay goes on; missing, e.g. from before the journal existed, it is added. */
+    fun resumeStay(anchor: GeoPoint, sinceMs: Long) {
+        val stay = latest()?.takeIf { it.kind == SegmentKind.STAY && it.startMs == sinceMs }
+        if (stay == null) record(listOf(StayStarted(anchor, sinceMs))) else update(stay.copy(ongoing = true))
+    }
+
     /** The newest segment, e.g. the ongoing stay. */
     fun latest(): Segment? = queries.latest().executeAsOneOrNull()?.toSegment()
 
@@ -127,7 +139,9 @@ class Journal(database: VerweilDatabase) {
     }
 
     private fun onStayEnded(output: StayEnded) {
+        // Ongoing, or paused when tracking stopped.
         val stay = latestOngoing(SegmentKind.STAY)
+            ?: queries.stayStartedAt(output.sinceMs).executeAsOneOrNull()?.toSegment()
         if (stay == null) {
             // The stay began before this journal existed, e.g. before an app update.
             insert(SegmentKind.STAY, output.sinceMs, output.untilMs, output.center, distanceM = 0.0, activities = emptyMap())

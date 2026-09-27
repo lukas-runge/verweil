@@ -33,6 +33,9 @@ UPDATE journal_segment
 SET end_ms = :endMs, ongoing = :ongoing, lat = :lat, lon = :lon, distance_m = :distanceM, activities = :activities
 WHERE id = :id;
 
+stayStartedAt:
+SELECT * FROM journal_segment WHERE kind = 'stay' AND start_ms = :startMs ORDER BY id DESC LIMIT 1;
+
 endOngoing:
 UPDATE journal_segment SET ongoing = 0 WHERE ongoing = 1;
 

@@ -1,6 +1,7 @@
 package de.lukasrunge.verweil.core.engine
 
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -40,6 +41,11 @@ data class EngineConfig(
      * every stay itself, instead of replacing Verweil's suggested visit with nothing.
      */
     val heartbeatInterval: Duration? = 5.minutes,
+    /**
+     * A stay paused by stopping tracking goes on if tracking starts again this soon after its last evidence of
+     * presence; later, it ends at that evidence. Dawarich bridges such a silence at the same place itself.
+     */
+    val resumeWindow: Duration = 1.hours,
     /** Wi-Fi scans a stay needs before its fingerprint counts, for departures and place memory. */
     val minWifiScans: Int = 2,
     /** A scan less similar than this to the stay's fingerprint suggests the place changed (`S_leave`). */
