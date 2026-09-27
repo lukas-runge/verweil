@@ -7,6 +7,11 @@ import kotlinx.serialization.json.Json
 class SqlPlaceStore(database: VerweilDatabase) : PlaceStore {
     private val queries = database.placeQueries
 
+    fun count(): Long = queries.count().executeAsOne()
+
+    /** Forgets every known place; the engine learns them anew from the next stays. */
+    fun clear() = queries.deleteAll()
+
     override fun all(): List<Place> = queries.all().executeAsList().map {
         Place(it.id, GeoPoint(it.lat, it.lon), Json.decodeFromString<Fingerprint>(it.fingerprint), it.visits.toInt())
     }

@@ -38,6 +38,9 @@ class Outbox(database: VerweilDatabase) {
     fun countsFlow(context: CoroutineContext): Flow<OutboxCounts> =
         queries.counts().asFlow().mapToOne(context).map { it.toCounts() }
 
+    /** Drops everything queued and set aside, e.g. when signing out of an account for good. */
+    fun clear() = queries.deleteAll()
+
     /** Queues rejected items again, e.g. after a server update fixed the cause. */
     fun retryRejected() = queries.retryRejected()
 

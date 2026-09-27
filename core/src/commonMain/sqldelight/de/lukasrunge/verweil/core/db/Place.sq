@@ -19,3 +19,9 @@ UPDATE place SET lat = :lat, lon = :lon, fingerprint = :fingerprint, visits = :v
 
 lastInsertId:
 SELECT last_insert_rowid();
+
+count:
+SELECT count(*) FROM place;
+
+deleteAll:
+DELETE FROM place;

@@ -60,3 +60,8 @@ SELECT
         (SELECT count(*) FROM pending_visit WHERE error IS NOT NULL) AS rejected,
     (SELECT error FROM pending_point WHERE error IS NOT NULL
         UNION ALL SELECT error FROM pending_visit WHERE error IS NOT NULL LIMIT 1) AS last_error;
+
+deleteAll {
+    DELETE FROM pending_point;
+    DELETE FROM pending_visit;
+}
