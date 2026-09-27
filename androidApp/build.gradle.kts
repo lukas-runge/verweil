@@ -17,6 +17,12 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    androidResources {
+        // Lists English and German in the system's per-app language settings.
+        generateLocaleConfig = true
     }
 }
 

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window behind the first frame; matches the Compose background. -->
+    <color name="window_background">#F4F6F2</color>
+    <color name="icon_background">#2F5D50</color>
+    <color name="icon_foreground">#F4F6F2</color>
+    <color name="icon_path">#EDBE62</color>
+</resources>

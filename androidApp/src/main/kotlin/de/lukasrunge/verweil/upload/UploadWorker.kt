@@ -10,12 +10,13 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import de.lukasrunge.verweil.UploadStatus
+import de.lukasrunge.verweil.Notifications
+import de.lukasrunge.verweil.R
 import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.dawarich.DawarichClient
 import de.lukasrunge.verweil.core.dawarich.DawarichException
 import de.lukasrunge.verweil.core.platformHttpClient
-import kotlinx.coroutines.flow.update
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -32,20 +33,21 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             val sent = app.outbox.flush(
                 DawarichClient(settings.serverUrl, settings.apiKey, settings.deviceId, http, settings.customHeaders),
             )
-            app.uploadStatus.update {
-                UploadStatus(lastSuccessMs = if (sent > 0) System.currentTimeMillis() else it.lastSuccessMs)
-            }
+            app.settings.uploadSucceeded(sent, System.currentTimeMillis())
+            Notifications.clearUploadRefused(applicationContext)
             Result.success()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             if (e is DawarichException && e.isAuthError) {
                 // Retrying cannot help until the user signs in again; everything stays queued until then.
-                app.uploadStatus.update { it.copy(error = "Dawarich refused the API key. Sign out and sign in again.") }
+                app.settings.uploadFailed(e.message.orEmpty(), authRefused = true)
+                Notifications.uploadRefused(applicationContext)
                 return Result.failure()
             }
             Log.w(TAG, "Upload failed, will retry", e)
-            app.uploadStatus.update { it.copy(error = e.message ?: e.toString()) }
+            val message = if (e is IOException) applicationContext.getString(R.string.upload_unreachable) else e.message ?: e.javaClass.simpleName
+            app.settings.uploadFailed(message, authRefused = false)
             Result.retry()
         } finally {
             http.close()

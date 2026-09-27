@@ -5,9 +5,13 @@ import de.lukasrunge.verweil.core.engine.EngineConfig
 import de.lukasrunge.verweil.core.engine.EngineState
 import de.lukasrunge.verweil.core.engine.Mode
 import de.lukasrunge.verweil.core.engine.StayEngine
+import de.lukasrunge.verweil.core.journal.Journal
+import de.lukasrunge.verweil.core.journal.SegmentKind
+import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.EngineOutput
 import de.lukasrunge.verweil.core.model.GeoPoint
 import de.lukasrunge.verweil.core.model.SensorEvent
+import de.lukasrunge.verweil.core.model.StayStarted
 import de.lukasrunge.verweil.core.place.PlaceMemory
 import de.lukasrunge.verweil.core.place.SqlPlaceStore
 import de.lukasrunge.verweil.core.upload.Outbox
@@ -18,8 +22,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The engine with a memory. A step that produces uploads stores them together with the engine's state,
- * in one transaction, so a killed app continues an ongoing stay and never queues anything twice.
+ * The engine with a memory. A step that produces uploads stores them together with the engine's state
+ * and the [Journal] entries, in one transaction, so a killed app continues an ongoing stay and never queues anything twice.
  * Other steps save the state only when the mode changes or [saveInterval] has passed: with a fix every
  * second, writing it each time would rewrite hundreds of fixes per second. A kill loses at most that
  * stretch of fixes, never an upload.
@@ -30,6 +34,7 @@ class Tracker(
     private val saveInterval: Duration = 30.seconds,
 ) {
     private val outbox = Outbox(database)
+    private val journal = Journal(database)
     private val stateQueries = database.engineStateQueries
     private val engine = StayEngine(config, PlaceMemory(SqlPlaceStore(database), config), loadState())
 
@@ -38,13 +43,26 @@ class Tracker(
     /** Where the current stay is pinned, while there is one. */
     val stayAnchor: GeoPoint? get() = engine.stayAnchor
 
+    /** The latest recognised activity. */
+    val activity: Activity get() = engine.state.activity
+
     private var savedMode: Mode? = null
     private var savedAtMs: Long? = null
+
+    init {
+        // A stay restored from an app version without the journal is missing from the timeline; add it.
+        val anchor = engine.stayAnchor
+        val latest = journal.latest()
+        if (anchor != null && (latest == null || !(latest.kind == SegmentKind.STAY && latest.ongoing))) {
+            journal.record(listOf(StayStarted(anchor, engine.state.staySinceMs)))
+        }
+    }
 
     fun process(event: SensorEvent): List<EngineOutput> = step(event.timeMs, force = false) { engine.process(event) }
 
     /** Tracking stops: closes an open stay and starts over next time. */
-    fun finish(): List<EngineOutput> = step(savedAtMs ?: 0, force = true) { engine.finish() }
+    fun finish(): List<EngineOutput> =
+        step(savedAtMs ?: 0, force = true) { engine.finish() }.also { journal.endOngoing() }
 
     private fun step(timeMs: Long, force: Boolean, decide: () -> List<EngineOutput>): List<EngineOutput> =
         database.transactionWithResult {
@@ -54,6 +72,7 @@ class Tracker(
                 lastSave == null || timeMs - lastSave >= saveInterval.inWholeMilliseconds
             if (due) {
                 outbox.add(outputs.flatMap { it.toUploadItems() })
+                journal.record(outputs)
                 stateQueries.save(json.encodeToString(EngineState.serializer(), engine.state))
                 savedMode = engine.mode
                 savedAtMs = maxOf(timeMs, lastSave ?: timeMs)

@@ -1,0 +1,14 @@
+CREATE TABLE journal_segment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    start_ms INTEGER NOT NULL,
+    end_ms INTEGER NOT NULL,
+    ongoing INTEGER NOT NULL,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    distance_m REAL NOT NULL,
+    activities TEXT NOT NULL,
+    place_name TEXT
+);
+
+CREATE INDEX journal_segment_end ON journal_segment(end_ms);

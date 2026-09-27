@@ -1,0 +1,49 @@
+-- The days as the phone saw them: stays and the moves between them, for the timeline in the app.
+-- Only on the device and only for a few weeks; Dawarich keeps the history.
+
+CREATE TABLE journal_segment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- 'stay' or 'move'
+    kind TEXT NOT NULL,
+    start_ms INTEGER NOT NULL,
+    end_ms INTEGER NOT NULL,
+    -- 1 until the stay ends, the move reaches a stay, or tracking stops.
+    ongoing INTEGER NOT NULL,
+    -- A stay's anchor, later its refined centre; a move's latest point.
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    distance_m REAL NOT NULL,
+    -- Moves: metres per activity, e.g. "WALKING=1200;VEHICLE=300".
+    activities TEXT NOT NULL,
+    -- Looked up on the device for stays, if the user allows it.
+    place_name TEXT
+);
+
+CREATE INDEX journal_segment_end ON journal_segment(end_ms);
+
+insert:
+INSERT INTO journal_segment (kind, start_ms, end_ms, ongoing, lat, lon, distance_m, activities)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+latest:
+SELECT * FROM journal_segment ORDER BY id DESC LIMIT 1;
+
+update:
+UPDATE journal_segment
+SET end_ms = :endMs, ongoing = :ongoing, lat = :lat, lon = :lon, distance_m = :distanceM, activities = :activities
+WHERE id = :id;
+
+endOngoing:
+UPDATE journal_segment SET ongoing = 0 WHERE ongoing = 1;
+
+overlapping:
+SELECT * FROM journal_segment WHERE end_ms >= :fromMs AND start_ms < :toMs ORDER BY start_ms, id;
+
+setPlaceName:
+UPDATE journal_segment SET place_name = :name WHERE id = :id;
+
+pruneBefore:
+DELETE FROM journal_segment WHERE end_ms < :beforeMs AND ongoing = 0;
+
+deleteAll:
+DELETE FROM journal_segment;

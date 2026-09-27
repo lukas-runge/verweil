@@ -1,18 +1,23 @@
 package de.lukasrunge.verweil.ui
 
 import android.content.Context
+import android.content.res.Resources
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -26,7 +31,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -34,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import de.lukasrunge.verweil.R
 import de.lukasrunge.verweil.Settings
 import de.lukasrunge.verweil.core.dawarich.DAWARICH_CLOUD_URL
 import de.lukasrunge.verweil.core.dawarich.DawarichAuth
@@ -66,6 +76,7 @@ private fun Step.previous(): Step? = when (this) {
 @Composable
 fun LoginScreen(settings: Settings) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
@@ -98,7 +109,7 @@ fun LoginScreen(settings: Settings) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error = e.userMessage()
+                error = e.userMessage(resources)
             } finally {
                 busy = false
             }
@@ -111,38 +122,59 @@ fun LoginScreen(settings: Settings) {
         modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Verweil", style = MaterialTheme.typography.headlineMedium)
+        val previous = step.previous()
+        if (previous == null) {
+            Spacer(Modifier.height(40.dp))
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.displayMedium)
+            Text(
+                stringResource(R.string.login_tagline),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(24.dp))
+        } else {
+            IconButton(onClick = { if (!busy) go(previous) }, modifier = Modifier.padding(start = 0.dp)) {
+                Icon(ImageVector.vectorResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
+            }
+        }
 
         when (step) {
             Step.Start -> {
-                Text("Connect Verweil to your Dawarich account. Your locations are uploaded there.")
-
-                Text("Dawarich Cloud", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.login_cloud), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.login_cloud_detail),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Button(onClick = { go(Step.CloudSignIn) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Sign in with email")
+                    Text(stringResource(R.string.login_with_email))
                 }
                 TextButton(onClick = { uriHandler.openUri("$DAWARICH_CLOUD_URL/users/sign_up") }) {
-                    Text("No account yet? Sign up on dawarich.app")
+                    Text(stringResource(R.string.login_sign_up))
                 }
 
-                HorizontalDivider()
-
-                Text("For self-hosters", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(16.dp))
+                Text(stringResource(R.string.login_self_hosted), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.login_self_hosted_detail),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 OutlinedButton(onClick = { go(Step.SelfHosted) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Connect to your own Dawarich instance")
+                    Text(stringResource(R.string.login_connect_own))
                 }
             }
 
             Step.CloudSignIn -> {
-                Text("Sign in to Dawarich Cloud", style = MaterialTheme.typography.titleMedium)
+                Title(stringResource(R.string.login_cloud_title))
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
+                    label = { Text(stringResource(R.string.login_email)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
@@ -150,7 +182,7 @@ fun LoginScreen(settings: Settings) {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.login_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -172,19 +204,19 @@ fun LoginScreen(settings: Settings) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (busy) "Signing in…" else "Sign in") }
+                ) { Text(stringResource(if (busy) R.string.login_signing_in else R.string.login_sign_in)) }
                 TextButton(onClick = { uriHandler.openUri("$DAWARICH_CLOUD_URL/users/password/new") }) {
-                    Text("Forgot password?")
+                    Text(stringResource(R.string.login_forgot_password))
                 }
             }
 
             Step.TwoFactor -> {
-                Text("Two-factor authentication", style = MaterialTheme.typography.titleMedium)
-                Text("Enter the code from your authenticator app, or one of your backup codes.")
+                Title(stringResource(R.string.login_2fa_title))
+                Text(stringResource(R.string.login_2fa_text), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     value = otpCode,
                     onValueChange = { otpCode = it },
-                    label = { Text("Code") },
+                    label = { Text(stringResource(R.string.login_code)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
@@ -199,19 +231,19 @@ fun LoginScreen(settings: Settings) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (busy) "Verifying…" else "Verify") }
+                ) { Text(stringResource(if (busy) R.string.login_verifying else R.string.login_verify)) }
             }
 
             Step.SelfHosted -> {
-                Text("Connect to your own Dawarich instance", style = MaterialTheme.typography.titleMedium)
-                Text("Open Dawarich in a browser and go to Account → API access. There you find a QR code, the server URL and your API key.")
+                Title(stringResource(R.string.login_self_hosted_title))
+                Text(stringResource(R.string.login_self_hosted_text), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ErrorText(error)
+                val notDawarich = stringResource(R.string.login_not_a_dawarich_code)
                 Button(
                     enabled = !busy,
                     onClick = {
                         attempt {
-                            val code = parseConnectionCode(scanQrCode(context))
-                                ?: throw DawarichException("This is not a Dawarich QR code. Scan the one under Account → API access.")
+                            val code = parseConnectionCode(scanQrCode(context)) ?: throw DawarichException(notDawarich)
                             // Prefilled so a failed check can be fixed by hand, for example by adding proxy headers.
                             serverUrl = code.serverUrl
                             apiKey = code.apiKey
@@ -224,18 +256,22 @@ fun LoginScreen(settings: Settings) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (busy) "Connecting…" else "Scan QR code") }
+                ) {
+                    Icon(ImageVector.vectorResource(R.drawable.ic_qr_code_scanner), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(if (busy) R.string.login_connecting else R.string.login_scan))
+                }
                 OutlinedButton(enabled = !busy, onClick = { go(Step.ManualSetup) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Manual setup")
+                    Text(stringResource(R.string.login_manual))
                 }
             }
 
             Step.ManualSetup -> {
-                Text("Manual setup", style = MaterialTheme.typography.titleMedium)
+                Title(stringResource(R.string.login_manual))
                 OutlinedTextField(
                     value = serverUrl,
                     onValueChange = { serverUrl = it },
-                    label = { Text("Server URL") },
+                    label = { Text(stringResource(R.string.login_server_url)) },
                     placeholder = { Text("https://dawarich.example.org") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
@@ -243,7 +279,7 @@ fun LoginScreen(settings: Settings) {
                 )
                 if (serverUrl.isNotBlank() && isInsecureServerUrl(serverUrl)) {
                     Text(
-                        "This URL uses plain HTTP: your API key and locations travel unencrypted. Use HTTPS if you can.",
+                        stringResource(R.string.login_insecure),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -251,7 +287,7 @@ fun LoginScreen(settings: Settings) {
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
-                    label = { Text("API key") },
+                    label = { Text(stringResource(R.string.login_api_key)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -260,9 +296,9 @@ fun LoginScreen(settings: Settings) {
                 OutlinedTextField(
                     value = headerLines,
                     onValueChange = { headerLines = it },
-                    label = { Text("Custom headers (optional)") },
+                    label = { Text(stringResource(R.string.login_headers)) },
                     placeholder = { Text("CF-Access-Client-Id: …") },
-                    supportingText = { Text("One \"Name: Value\" per line, for reverse proxies such as Cloudflare Access or Pangolin.") },
+                    supportingText = { Text(stringResource(R.string.login_headers_hint)) },
                     minLines = 2,
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
@@ -277,10 +313,15 @@ fun LoginScreen(settings: Settings) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (busy) "Connecting…" else "Connect") }
+                ) { Text(stringResource(if (busy) R.string.login_connecting else R.string.login_connect)) }
             }
         }
     }
+}
+
+@Composable
+private fun Title(text: String) {
+    Text(text, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 4.dp))
 }
 
 @Composable
@@ -309,8 +350,8 @@ private suspend fun scanQrCode(context: Context): String {
     return GmsBarcodeScanning.getClient(context, options).startScan().await().rawValue.orEmpty()
 }
 
-private fun Exception.userMessage(): String = when (this) {
+private fun Exception.userMessage(resources: Resources): String = when (this) {
     is DawarichException, is IllegalArgumentException -> message.orEmpty()
-    is IOException -> "Could not reach the server. Check the address and your connection. (${message ?: javaClass.simpleName})"
+    is IOException -> resources.getString(R.string.login_unreachable, message ?: javaClass.simpleName)
     else -> message ?: javaClass.simpleName
 }

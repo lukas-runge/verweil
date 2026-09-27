@@ -1,0 +1,16 @@
+-- Dawarich's timeline per day as last fetched, so a day shows at once and offline. Entries as JSON.
+
+CREATE TABLE timeline_day (
+    start_ms INTEGER PRIMARY KEY,
+    entries TEXT NOT NULL,
+    fetched_ms INTEGER NOT NULL
+);
+
+get:
+SELECT entries, fetched_ms FROM timeline_day WHERE start_ms = ?;
+
+put:
+INSERT OR REPLACE INTO timeline_day (start_ms, entries, fetched_ms) VALUES (?, ?, ?);
+
+deleteAll:
+DELETE FROM timeline_day;

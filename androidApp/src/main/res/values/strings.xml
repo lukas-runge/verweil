@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Verweil</string>
+
+    <!-- Actions -->
+    <string name="action_allow">Allow</string>
+    <string name="action_allow_location">Allow location access</string>
+    <string name="action_allow_precise">Allow precise location</string>
+    <string name="action_allow_all_the_time">Allow all the time</string>
+    <string name="action_allow_background">Allow in the background</string>
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_delete_all">Delete all recordings</string>
+    <string name="action_forget">Forget</string>
+    <string name="action_later">Later</string>
+    <string name="action_next_day">Next day</string>
+    <string name="action_previous_day">Previous day</string>
+    <string name="action_open_dawarich">Open Dawarich</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_retry">Send again</string>
+    <string name="action_save">Save</string>
+    <string name="action_share">Share</string>
+    <string name="action_share_all">Share all</string>
+    <string name="action_sign_in_again">Sign in again</string>
+    <string name="action_sign_out">Sign out</string>
+    <string name="action_start_tracking">Start tracking</string>
+    <string name="action_stop_tracking">Stop tracking</string>
+    <string name="action_turn_on_location">Turn on location</string>
+    <string name="action_upload_now">Send now</string>
+
+    <!-- States of the engine -->
+    <string name="mode_starting">Starting</string>
+    <string name="mode_moving">On the move</string>
+    <string name="mode_settling">Arriving?</string>
+    <string name="mode_staying">Staying</string>
+    <string name="mode_leaving">Leaving?</string>
+
+    <string name="travel_walking">On foot</string>
+    <string name="travel_running">Running</string>
+    <string name="travel_cycling">By bike</string>
+    <string name="travel_driving">By car</string>
+    <string name="travel_motorcycle">By motorcycle</string>
+    <string name="travel_bus">By bus</string>
+    <string name="travel_train">By train</string>
+    <string name="travel_flying">By plane</string>
+    <string name="travel_boat">By boat</string>
+    <string name="travel_vehicle">By car or train</string>
+    <string name="travel_unknown">On the move</string>
+    <!-- Main screen -->
+    <string name="hero_recording">Recording</string>
+    <string name="hero_not_recording">Not recording</string>
+    <string name="hero_off">Tracking is off</string>
+    <string name="hero_off_detail">Start tracking and Verweil works out where you stay and how you get around.</string>
+    <string name="hero_interrupted">Tracking stopped</string>
+    <string name="hero_interrupted_no_location">Verweil no longer has access to your location. Allow it to continue.</string>
+    <string name="hero_location_off">Location is off</string>
+    <string name="hero_location_off_detail">Verweil records nothing until you turn location back on.</string>
+    <string name="hero_since_for">Since %1$s (%2$s)</string>
+    <string name="hero_since_distance">Since %1$s, %2$s so far</string>
+    <string name="hero_staying_detail">Verweil sends one point per hour while you stay.</string>
+    <string name="hero_moving_detail">Verweil records your way.</string>
+    <string name="hero_settling_detail">Verweil waits a few minutes to see whether you stay.</string>
+    <string name="hero_leaving_detail">Verweil checks whether you are leaving.</string>
+    <string name="hero_starting_detail">Waiting for the first location.</string>
+    <string name="hero_last_fix">Last location at %1$s, accurate to %2$d m</string>
+    <string name="hero_waiting_for_fix">No location yet</string>
+    <string name="hero_no_signal">No location signal right now</string>
+
+    <string name="stop_title">Stop tracking?</string>
+    <string name="stop_text">An ongoing stay ends now and goes to Dawarich. Tracking stays off until you start it again, also after a restart.</string>
+
+    <string name="notice_auth_title">Dawarich refuses the API key</string>
+    <string name="notice_auth_text">New locations wait on this phone until you sign in again.</string>
+    <string name="notice_approximate_title">Only approximate location</string>
+    <string name="notice_approximate_text">With approximate location, stays and ways end up hundreds of metres off.</string>
+    <string name="notice_background_title">Only while the app is open</string>
+    <string name="notice_background_text">Without \"Allow all the time\", Android may stop tracking in the background, and it does not resume after a restart.</string>
+    <string name="notice_battery_title">Battery optimisation is on</string>
+    <string name="notice_battery_text">Android may pause Verweil in the background and miss parts of your day.</string>
+    <string name="notice_activity_title">Motion detection is off</string>
+    <string name="notice_activity_text">Verweil notices departures later and uses more battery.</string>
+    <string name="notice_notifications_title">Notifications are off</string>
+    <string name="notice_notifications_text">You will not hear when tracking stopped.</string>
+
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
+    <plurals name="timeline_summary">
+        <item quantity="one">%1$d place, %2$s on the move</item>
+        <item quantity="other">%1$d places, %2$s on the move</item>
+    </plurals>
+    <string name="timeline_empty_today">Nothing in Dawarich today yet. Stays and ways show up here as Verweil recognises them.</string>
+    <string name="timeline_empty">No stays or ways in Dawarich on this day.</string>
+    <string name="action_pick_day">Choose a day</string>
+    <string name="action_show_day">Show</string>
+    <string name="action_open_day_in_dawarich">Open this day in Dawarich</string>
+    <string name="timeline_pending">Not in Dawarich yet</string>
+    <string name="timeline_stale">Dawarich is not reachable; this is the copy from %1$s.</string>
+    <string name="timeline_unreachable">Dawarich is not reachable. This is what this phone recognised.</string>
+    <string name="timeline_refused">Dawarich refuses the API key. This is what this phone recognised.</string>
+    <string name="timeline_too_old">Your Dawarich has no timeline yet; it came with version 1.3. This is what this phone recognised.</string>
+    <string name="timeline_empty_phone">This phone recognised nothing on this day.</string>
+    <string name="timeline_stay">Stay</string>
+    <string name="timeline_since">Since %1$s</string>
+    <string name="timeline_open_since">Open since %1$s</string>
+    <string name="timeline_move_detail">%1$s in %2$s</string>
+    <string name="timeline_gap">No data for %1$s</string>
+
+    <string name="upload_title">Dawarich</string>
+    <string name="upload_done">Everything sent</string>
+    <string name="upload_last">Last sent at %1$s</string>
+    <string name="upload_soon">Goes out within a few minutes</string>
+    <string name="upload_failed">Sending failed, trying again: %1$s</string>
+    <string name="upload_unreachable">Dawarich is not reachable</string>
+    <string name="upload_auth_refused">Waiting until you sign in again</string>
+    <plurals name="upload_waiting">
+        <item quantity="one">%d entry waiting</item>
+        <item quantity="other">%d entries waiting</item>
+    </plurals>
+    <plurals name="upload_rejected">
+        <item quantity="one">Dawarich refused %d entry</item>
+        <item quantity="other">Dawarich refused %d entries</item>
+    </plurals>
+
+    <!-- Setup -->
+    <string name="setup_title">Almost there</string>
+    <string name="setup_intro">Android needs to allow a few things before Verweil can follow your day. Your locations only go to your Dawarich server.</string>
+    <string name="setup_location_title">Precise location</string>
+    <string name="setup_location_text">For your ways and the places you stay at. Required.</string>
+    <string name="setup_activity_title">Motion detection</string>
+    <string name="setup_activity_text">Tells sitting from walking or driving. Verweil notices departures sooner and saves battery.</string>
+    <string name="setup_notifications_title">Notifications</string>
+    <string name="setup_notifications_text">Android shows one while Verweil records. Verweil also tells you when tracking stopped.</string>
+    <string name="setup_background_title">Location all the time</string>
+    <string name="setup_background_text">So Verweil keeps recording with the app closed and resumes after a restart. Choose \"Allow all the time\" in the settings.</string>
+    <string name="setup_battery_title">No battery restrictions</string>
+    <string name="setup_battery_text">Otherwise Android pauses Verweil in the background.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_api_key_account">Connected with an API key</string>
+    <string name="settings_device_name">Device name</string>
+    <string name="settings_device_name_detail">Dawarich shows this name with the points from this phone. Leave it empty for the model name.</string>
+    <string name="settings_headers">Proxy headers</string>
+    <string name="settings_headers_none">None</string>
+    <string name="settings_tracking">Tracking</string>
+    <string name="settings_place_names">Show place names</string>
+    <string name="settings_place_names_detail">Names stays in the timeline. The phone\'s geocoder, usually Google\'s, receives their coordinates.</string>
+    <string name="settings_reliability">Tracking stops anyway?</string>
+    <string name="settings_reliability_detail">Help for Samsung, Xiaomi and other phones that stop background apps</string>
+    <string name="settings_on_this_phone">On this phone</string>
+    <string name="settings_forget_places">Forget known places</string>
+    <plurals name="settings_known_places">
+        <item quantity="one">%d place recognised by its Wi-Fi</item>
+        <item quantity="other">%d places recognised by their Wi-Fi</item>
+    </plurals>
+    <string name="settings_clear_timeline">Delete stored timeline</string>
+    <string name="settings_clear_timeline_detail">Days cached from Dawarich and what this phone recognised. Dawarich keeps everything.</string>
+    <string name="settings_record_raw">Record raw sensor data</string>
+    <string name="settings_record_raw_detail">For tuning Verweil with replays. Contains where you live; deleted after 30 days.</string>
+    <string name="settings_diagnostics_detail">Engine state, sensors, upload queue, recordings</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Verweil %1$s</string>
+    <string name="settings_about_detail">Open source. Typeface: Bricolage Grotesque, SIL Open Font License.</string>
+    <string name="settings_source">Source code</string>
+
+    <string name="sign_out_title">Sign out?</string>
+    <string name="sign_out_text">Tracking stops and Verweil forgets the access to %1$s.</string>
+    <plurals name="sign_out_discard">
+        <item quantity="one">Delete %d entry not yet sent</item>
+        <item quantity="other">Delete %d entries not yet sent</item>
+    </plurals>
+    <string name="sign_out_discard_no">They go to the next account you sign in with.</string>
+    <string name="sign_out_discard_yes">They are gone for good.</string>
+    <string name="forget_places_text">Verweil learns places anew from your next stays. Stays already sent stay in Dawarich.</string>
+    <string name="clear_timeline_text">Deletes the cached days and what this phone recognised. Dawarich keeps everything; days load again when you open them.</string>
+
+    <!-- Diagnostics -->
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_engine">Engine</string>
+    <string name="diagnostics_running">Service running</string>
+    <string name="diagnostics_mode">Mode</string>
+    <string name="diagnostics_activity">Activity</string>
+    <string name="diagnostics_profile">Location profile</string>
+    <string name="diagnostics_geofence">Geofence</string>
+    <string name="diagnostics_segment">Latest segment</string>
+    <string name="diagnostics_position">Position</string>
+    <string name="diagnostics_sensors">Sensors</string>
+    <string name="diagnostics_location_enabled">Location on</string>
+    <string name="diagnostics_location_available">Location available</string>
+    <string name="diagnostics_last_fix">Last fix</string>
+    <string name="diagnostics_last_wifi">Last Wi-Fi scan</string>
+    <plurals name="diagnostics_wifi_value">
+        <item quantity="one">%1$s, %2$d access point</item>
+        <item quantity="other">%1$s, %2$d access points</item>
+    </plurals>
+    <string name="diagnostics_known_places">Known places</string>
+    <string name="diagnostics_last_event">Last event</string>
+    <string name="diagnostics_queue">Upload queue</string>
+    <string name="diagnostics_pending">Waiting</string>
+    <string name="diagnostics_rejected">Refused</string>
+    <string name="diagnostics_last_error">Last error</string>
+    <string name="diagnostics_recordings">Recordings</string>
+    <plurals name="diagnostics_recordings_detail">
+        <item quantity="one">Raw sensor data per day, for replays on a computer. Kept for %1$d day.</item>
+        <item quantity="other">Raw sensor data per day, for replays on a computer. Kept for %1$d days.</item>
+    </plurals>
+    <string name="diagnostics_yes">yes</string>
+    <string name="diagnostics_no">no</string>
+    <string name="diagnostics_none" translatable="false">–</string>
+    <string name="delete_recordings_title">Delete all recordings?</string>
+    <string name="delete_recordings_text">Replays of these days will no longer be possible.</string>
+
+    <!-- Sign-in -->
+    <string name="login_tagline">Verweil tells staying from moving, and sends your Dawarich clean ways instead of indoor zig-zag.</string>
+    <string name="login_cloud">Dawarich Cloud</string>
+    <string name="login_cloud_detail">Your account on dawarich.app.</string>
+    <string name="login_with_email">Sign in with email</string>
+    <string name="login_sign_up">No account yet? Sign up on dawarich.app</string>
+    <string name="login_self_hosted">Your own server</string>
+    <string name="login_self_hosted_detail">A Dawarich instance you run yourself.</string>
+    <string name="login_connect_own">Connect your own Dawarich</string>
+    <string name="login_cloud_title">Sign in to Dawarich Cloud</string>
+    <string name="login_email">Email</string>
+    <string name="login_password">Password</string>
+    <string name="login_sign_in">Sign in</string>
+    <string name="login_signing_in">Signing in…</string>
+    <string name="login_forgot_password">Forgot password?</string>
+    <string name="login_2fa_title">Two-factor authentication</string>
+    <string name="login_2fa_text">Enter the code from your authenticator app, or one of your backup codes.</string>
+    <string name="login_code">Code</string>
+    <string name="login_verify">Verify</string>
+    <string name="login_verifying">Verifying…</string>
+    <string name="login_self_hosted_title">Connect your own Dawarich</string>
+    <string name="login_self_hosted_text">Open Dawarich in a browser and go to Account → API access. There you find a QR code, the server URL and your API key.</string>
+    <string name="login_scan">Scan QR code</string>
+    <string name="login_connecting">Connecting…</string>
+    <string name="login_manual">Manual setup</string>
+    <string name="login_server_url">Server URL</string>
+    <string name="login_insecure">This URL uses plain HTTP: your API key and locations travel unencrypted. Use HTTPS if you can.</string>
+    <string name="login_api_key">API key</string>
+    <string name="login_headers">Custom headers (optional)</string>
+    <string name="login_headers_hint">One \"Name: Value\" per line, for reverse proxies such as Cloudflare Access or Pangolin.</string>
+    <string name="login_connect">Connect</string>
+    <string name="login_not_a_dawarich_code">This is not a Dawarich QR code. Scan the one under Account → API access.</string>
+    <string name="login_unreachable">Could not reach the server. Check the address and your connection. (%1$s)</string>
+
+    <!-- Notifications -->
+    <string name="channel_tracking">Tracking</string>
+    <string name="channel_tracking_description">Shown while Verweil records your location.</string>
+    <string name="channel_alerts">Problems</string>
+    <string name="channel_alerts_description">When tracking stopped or Dawarich refuses the access.</string>
+    <string name="notification_starting">Verweil is starting</string>
+    <string name="notification_staying_since">Staying since %1$s</string>
+    <string name="notification_location_off">Location is off</string>
+    <string name="notification_tracking_text">Verweil records your location</string>
+    <string name="notification_interrupted_title">Tracking stopped</string>
+    <string name="interrupted_no_location">Verweil no longer has access to your location. Open Verweil to allow it.</string>
+    <string name="interrupted_no_background">Android stopped Verweil, and without \"Allow all the time\" it cannot restart. Open Verweil to continue.</string>
+    <string name="interrupted_start_refused">Android did not let Verweil restart in the background. Open Verweil to continue.</string>
+    <string name="notification_upload_refused_title">Dawarich refuses the API key</string>
+    <string name="notification_upload_refused_text">New locations wait on this phone. Open Verweil and sign in again.</string>
+
+    <!-- Units -->
+    <string name="duration_under_minute">under a minute</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours">%1$d h</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="distance_meters">%1$d m</string>
+    <string name="distance_kilometers">%1$s km</string>
+</resources>

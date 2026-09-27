@@ -22,7 +22,8 @@ Early prototype.
 | Dawarich upload: Overland points and visits, persistent outbox, refused data set aside | Done, tested against mocks |
 | Sign-in: Dawarich Cloud (email, 2FA), self-hosted (QR code, manual setup with proxy headers) | Done, tested against mocks |
 | Raw event recording (JSONL) and replay | Done |
-| Android: foreground service, fused location, activity recognition, Wi-Fi, geofence, resume after reboot, upload worker, status UI | Runs in the emulator; not yet tried on a real phone for a day |
+| Android: foreground service, fused location, activity recognition, Wi-Fi, geofence, resume after reboot, watchdog, upload worker | Runs in the emulator; alpha testing on a real phone |
+| Android UI: guided setup, state, timeline of any day from Dawarich, settings, diagnostics with recordings; English and German | Done |
 | Track simplification (streaming Douglas–Peucker), fixes every second while moving | Done with tests; measured on one walk |
 | Track smoothing (Kalman with Doppler velocity) | Done, off: made a measured walk less accurate; kept for replays |
 | Replay tool comparing track pipeline variants as GeoJSON with metrics | Done |
@@ -45,5 +46,6 @@ Needs JDK 21 and the Android SDK.
    - **Self-hosted:** in Dawarich, open Account → API access. Scan the QR code there, or enter the server URL
      and API key by hand. Manual setup also takes custom headers for servers behind an authenticating
      reverse proxy (Cloudflare Access, Pangolin).
-3. Grant location and activity access, then "Allow location all the time", then allow running in the background.
+3. Follow the setup: precise location, motion detection, notifications, "Allow all the time", no battery restrictions.
 4. Start tracking. Disable other trackers that send to the same Dawarich account.
+5. Raw recordings for replays are on in debug builds; share them from Settings → Diagnostics.

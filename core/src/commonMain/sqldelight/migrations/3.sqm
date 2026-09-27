@@ -1,0 +1,5 @@
+CREATE TABLE timeline_day (
+    start_ms INTEGER PRIMARY KEY,
+    entries TEXT NOT NULL,
+    fetched_ms INTEGER NOT NULL
+);
