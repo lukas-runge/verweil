@@ -27,7 +27,7 @@ That keeps the engine testable on a desktop JVM and identical on both platforms.
 | `tracking` | `Tracker`: the engine with a memory. Restores the saved state and stores it with the uploads of a step in one transaction; steps without uploads save on mode changes or every 30 s |
 | `geo` | Distance and accuracy-weighted median |
 | `upload` | Mapping engine output to Dawarich items; `Outbox`, the persistent upload queue, which sets aside data the server refuses |
-| `dawarich` | `DawarichClient` for the Overland batch and visits APIs and the timeline API (Dawarich 1.3 and later); `DawarichAuth` for sign-in (mobile auth API, API key check, QR code) |
+| `dawarich` | `DawarichClient` for the Overland batch API and the timeline API (Dawarich 1.3 and later); no visits, Dawarich detects them; `DawarichAuth` for sign-in (mobile auth API, API key check, QR code) |
 | `replay` | `EventLog` (JSONL recording format) and `replay()` for tuning on recorded days; on the JVM, `ReplayTool` compares track pipeline variants as GeoJSON (`./gradlew :core:replay`) |
 
 Targets: `android`, `jvm` (tests and desktop replays), `iosArm64`, `iosSimulatorArm64`.

@@ -21,7 +21,7 @@ Dawarich turns every one of those fixes into movement:
   [#3417](https://github.com/Freika/dawarich/issues/3417),
   [#3300](https://github.com/Freika/dawarich/issues/3300),
   [#3601](https://github.com/Freika/dawarich/issues/3601).
-  Maintainers point to the client as the place to fix it.
+  None of them has a maintainer answer (checked 2026-09-27).
 
 The result: a day at the desk adds up to several kilometres of zig-zag lines.
 
@@ -47,11 +47,24 @@ Verweil copies 1–3 on the device. Point 4 is optional and later.
 ## Core idea
 
 > Verweil decides on the device whether you are **staying** or **moving**.
-> Only movement becomes a track. A stay becomes a single anchor point and a Dawarich visit.
+> Only movement becomes a track. A stay becomes points at a single anchor, which Dawarich turns into a visit.
 
 While a stay is active, fixes are **never** forwarded, whatever position they report.
 A single bad fix therefore cannot create distance.
 Leaving a stay needs two independent signals: motion, and a *good* fix outside the stay radius.
+
+## Division of labour with Dawarich
+
+Dawarich documents no contract for its clients: the `CLAUDE.md` in its repository calls itself the authoritative
+architecture reference and has no word on it, and there are no ADRs. What its code, its documentation and its own
+apps show is this: clients send points, the server interprets them. The official Android app records raw points and
+uploads them in batches, with a distance and a time filter at most. Dawarich then flags anomalies (by speed only),
+cuts tracks at time gaps, classifies modes of travel, detects visits and names places.
+Its visits API is for people creating and editing visits by hand.
+
+Verweil keeps that contract and sits in front of it as a filter: it sends only points, but clean ones. A smoothed,
+simplified track while moving; while staying, points at one spot instead of indoor zig-zag.
+What a track and what a visit is, Dawarich decides.
 
 ## Inputs
 
@@ -202,20 +215,31 @@ Authentication is the user's API key as `Authorization: Bearer <key>`.
   `motion` (activity), `device_id`.
 - **Stays** become points at the anchor: one at arrival, one at departure and a heartbeat every 5 minutes,
   so the map shows you there and distance stays at 0.
-- **Visits:** when a stay ends, Verweil also creates it at its refined centre through `POST /api/v1/visits`
-  with `{ "visit": { "latitude", "longitude", "started_at", "ended_at", "name": "Suggested place", "status": "suggested" } }`.
-  With status `suggested`, Dawarich reverse-geocodes a name for new places, reuses places within 100 m,
-  deduplicates, and lets the user confirm the visit.
-  Dawarich's own visit detection replaces every suggested visit in the window it looks at with what it detects
-  itself (`Visits::Detection::Persister`). It needs 3 points per stay and ends a stay after an hour without points
-  (defaults), so with hourly heartbeats it found nothing and Verweil's stays vanished. With a heartbeat every
-  5 minutes it detects each stay itself, from points that all lie on the anchor, while it is still going on.
-  Verweil does not confirm visits: what becomes fixed in Dawarich stays the user's decision.
+- **Visits:** none. Dawarich's visit detection finds each stay in the points at the anchor, while it is still
+  going on, and suggests it as a visit for the user to confirm. It needs 3 points per stay and ends a stay after an
+  hour without points (defaults), hence the heartbeat every 5 minutes.
+  Until September 2026 Verweil also created visits (`POST /api/v1/visits`, status `suggested`). The detection
+  replaces every suggested visit in the window it looks at with what it finds itself
+  (`Visits::Detection::Persister`), so they were duplicates at best; at a place Dawarich already knew they kept the
+  placeholder name "Suggested place", and with hourly heartbeats a stay vanished altogether.
   The app's timeline fills holes in Dawarich's timeline with the stays and moves the phone recognised.
 - All output goes through a persistent upload queue. It is sent in batches with retries and survives
   offline periods and app restarts.
   Data the server refuses (4xx other than 401, 403, 408 and 429) is set aside with its error instead of blocking
   the queue; the user can retry it. A refused API key keeps everything queued until the user signs in again.
+
+## Dawarich settings Verweil relies on
+
+- **Time gap between Tracks: 4 minutes** (default 30). Dawarich cuts tracks only at time gaps between points
+  (and at jumps longer than "Distance gap between Tracks"). With a heartbeat every 5 minutes there is no
+  30-minute gap, so a walk ran on into the stay after it. Below 5 minutes, every stay ends the track.
+  The cost: a ride without any signal for more than 4 minutes (underground, tunnel) splits into two.
+- Tracks of the same device that are less than 30 minutes and 5 km apart are joined again anyway
+  (`Tracks::BoundaryDetector`, a fixed floor). A stop shorter than 30 minutes therefore never splits a track in
+  Dawarich, whatever the setting; its visit, if detected, lies across the track.
+- Visit suggestions stay on. Confirm a visit only after the stay is over: a confirmed visit gets a fixed end, and
+  the detection then makes the rest of the stay a separate visit.
+- No other tracker sends to the same account: Dawarich sums its indoor jitter as distance.
 
 ## Tuning by replay
 
@@ -254,6 +278,7 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 - Map matching. Off roads and paths, e.g. hiking or climbing, there is nothing to snap to,
   so it could only ever be optional server-side post-processing, e.g. with a self-hosted Valhalla (Meili).
 - Place naming, which Dawarich and its reverse geocoder already do.
+- Deciding what a visit is, which Dawarich's detection does from the points.
 - Any UI beyond status, settings, a debug view and a timeline of any day. The timeline reads Dawarich's own
   (`GET /api/v1/timeline`, Dawarich 1.3 and later) and adds what the phone recognised that Dawarich does not show
   yet, such as the ongoing stay. Editing history stays in Dawarich.
@@ -262,3 +287,5 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 
 - Real-world latency of activity transitions, which decides how much of a departure is lost.
 - Background killing by OEM Android builds such as Samsung and Xiaomi.
+- Short stops, like a bakery: does Dawarich's detection get its 3 points (arrival, one heartbeat, departure)
+  and keep them as visits?

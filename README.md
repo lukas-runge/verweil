@@ -6,7 +6,7 @@ Plain tracking apps send every raw fix to Dawarich. Indoors those fixes drift by
 and Dawarich adds the drift up as distance: you sit at your desk all day and still "walk" kilometres.
 Verweil (German for *to linger*) uses the idea that makes Google Maps Timeline clean.
 It decides on the phone whether you are **staying** or **moving**.
-Movement becomes a track; a stay becomes one anchor point and a Dawarich visit.
+Movement becomes a track; a stay becomes points at one spot, which Dawarich turns into a visit.
 
 - [Concept](docs/concept.md): the problem, what Google does, the state machine, and the Dawarich output
 - [Architecture](docs/architecture.md): modules, tech stack, testing and build
@@ -18,8 +18,8 @@ Early prototype.
 | Part | State |
 |---|---|
 | Stay/move state machine (`core/engine`), survives app restarts | Done with tests; thresholds not yet tuned on real days |
-| Wi-Fi place memory, refined visit centres, heartbeats | Done with tests; thresholds are guesses |
-| Dawarich upload: Overland points and visits, persistent outbox, refused data set aside | Done, tested against mocks |
+| Wi-Fi place memory, refined stay centres, heartbeats every 5 min | Done with tests; thresholds are guesses |
+| Dawarich upload: Overland points (no visits: Dawarich detects them), persistent outbox, refused data set aside | Done, tested against mocks |
 | Sign-in: Dawarich Cloud (email, 2FA), self-hosted (QR code, manual setup with proxy headers) | Done, tested against mocks |
 | Raw event recording (JSONL) and replay | Done |
 | Android: foreground service, fused location, activity recognition, Wi-Fi, geofence, resume after reboot, watchdog, upload worker | Runs in the emulator; alpha testing on a real phone |
@@ -48,4 +48,6 @@ Needs JDK 21 and the Android SDK.
      reverse proxy (Cloudflare Access, Pangolin).
 3. Follow the setup: precise location, motion detection, notifications, "Allow all the time", no battery restrictions.
 4. Start tracking. Disable other trackers that send to the same Dawarich account.
-5. Raw recordings for replays are on in debug builds; share them from Settings → Diagnostics.
+5. In Dawarich, set "Time gap between Tracks" to 4 minutes and keep visit suggestions on
+   (why: [Dawarich settings Verweil relies on](docs/concept.md#dawarich-settings-verweil-relies-on)).
+6. Raw recordings for replays are on in debug builds; share them from Settings → Diagnostics.
