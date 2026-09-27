@@ -5,6 +5,8 @@ import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.StayEnded
 import de.lukasrunge.verweil.core.model.StayStarted
 import de.lukasrunge.verweil.core.model.TrackPoint
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,6 +98,40 @@ class StayEngineTest {
     }
 
     @Test
+    fun aWalkAroundTheBlockWithPreciseFixesIsATrip() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 20)
+        s.activity(Activity.WALKING)
+        walkAroundTheBlock(s, accuracy = 5.0)
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 10)
+
+        val out = s.run()
+
+        assertEquals(1, out.filterIsInstance<StayEnded>().size)
+        assertEquals(2, out.filterIsInstance<StayStarted>().size)
+        val distance = out.dawarichDistanceMeters()
+        assertTrue(distance in 280.0..340.0, "walked the 320 m loop, got $distance")
+    }
+
+    @Test
+    fun theSameWalkWithImpreciseFixesStaysWithinTheStay() {
+        val s = Scenario()
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 20)
+        s.activity(Activity.WALKING)
+        walkAroundTheBlock(s, accuracy = 30.0)
+        s.activity(Activity.STILL)
+        stayAt(s, minutes = 10)
+
+        val out = s.run()
+
+        assertEquals(1, out.filterIsInstance<StayStarted>().size)
+        assertTrue(out.none { it is StayEnded || it is TrackPoint })
+    }
+
+    @Test
     fun shortStopDoesNotBecomeAStay() {
         val s = Scenario()
         walkEast(s, fromM = 0.0, minutes = 2)
@@ -127,6 +163,27 @@ class StayEngineTest {
         val out = s.run()
 
         assertTrue(out.filterIsInstance<TrackPoint>().all { it.fix.accuracy <= 35.0 })
+    }
+
+    /** Stays put at the origin with a fix every minute. */
+    private fun stayAt(s: Scenario, minutes: Int) {
+        repeat(minutes) {
+            s.advance(1.minutes)
+            s.fix(eastM = 0.0, northM = 0.0, accuracy = 10.0)
+        }
+    }
+
+    /** A 100 × 60 m loop at walking pace that starts and ends at the origin, never farther than 117 m from it. */
+    private fun walkAroundTheBlock(s: Scenario, accuracy: Double) {
+        val corners = listOf(0.0 to 0.0, 100.0 to 0.0, 100.0 to 60.0, 0.0 to 60.0, 0.0 to 0.0)
+        corners.zipWithNext { (fromEast, fromNorth), (toEast, toNorth) ->
+            val steps = (hypot(toEast - fromEast, toNorth - fromNorth) / 7.0).roundToInt()
+            repeat(steps) { i ->
+                val f = (i + 1.0) / steps
+                s.advance(5.seconds)
+                s.fix(fromEast + (toEast - fromEast) * f, fromNorth + (toNorth - fromNorth) * f, accuracy)
+            }
+        }
     }
 
     private fun walkEast(s: Scenario, fromM: Double, minutes: Int) {
