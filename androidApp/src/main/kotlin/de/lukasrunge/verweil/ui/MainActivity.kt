@@ -1,10 +1,13 @@
 package de.lukasrunge.verweil.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -24,7 +27,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -32,13 +37,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.lukasrunge.verweil.SettingsValues
 import de.lukasrunge.verweil.TrackingStatus
+import de.lukasrunge.verweil.UploadStatus
 import de.lukasrunge.verweil.VerweilApp
+import de.lukasrunge.verweil.core.upload.OutboxCounts
+import de.lukasrunge.verweil.hasPermission
 import de.lukasrunge.verweil.tracking.TrackingService
+import de.lukasrunge.verweil.upload.UploadWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -68,6 +79,11 @@ private fun TrackingScreen(app: VerweilApp, settings: SettingsValues) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val status by app.status.collectAsStateWithLifecycle()
+    val uploadStatus by app.uploadStatus.collectAsStateWithLifecycle()
+    val counts by remember { app.outbox.countsFlow(Dispatchers.IO) }.collectAsStateWithLifecycle(initialValue = null)
+
+    // Sends what waited while signed out or while the key was refused.
+    LaunchedEffect(settings.apiKey) { UploadWorker.uploadNow(context) }
 
     // Bumped after every permission dialog so the checks below run again.
     var permissionRound by remember { mutableIntStateOf(0) }
@@ -77,8 +93,12 @@ private fun TrackingScreen(app: VerweilApp, settings: SettingsValues) {
     val backgroundLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         permissionRound++
     }
-    val hasLocation = remember(permissionRound) { context.has(Manifest.permission.ACCESS_FINE_LOCATION) }
-    val hasBackground = remember(permissionRound) { context.has(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
+    val batteryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        permissionRound++
+    }
+    val hasLocation = remember(permissionRound) { context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) }
+    val hasBackground = remember(permissionRound) { context.hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }
+    val unrestricted = remember(permissionRound) { context.ignoresBatteryOptimizations() }
 
     Column(
         modifier = Modifier
@@ -108,6 +128,18 @@ private fun TrackingScreen(app: VerweilApp, settings: SettingsValues) {
             }
         }
 
+        if (!unrestricted) {
+            Text("Battery optimization can stop tracking in the background.")
+            Button(onClick = { batteryLauncher.launch(context.batteryOptimizationRequest()) }) {
+                Text("Allow running in the background")
+            }
+        }
+        // Some manufacturers stop background apps regardless of the Android setting.
+        val uriHandler = LocalUriHandler.current
+        TextButton(onClick = { uriHandler.openUri("https://dontkillmyapp.com/") }) {
+            Text("Tracking stops anyway? Help for Samsung, Xiaomi and others")
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = hasLocation && !status.running, onClick = { TrackingService.start(context) }) {
                 Text("Start")
@@ -116,6 +148,42 @@ private fun TrackingScreen(app: VerweilApp, settings: SettingsValues) {
                 Text("Stop")
             }
         }
+
+        counts?.let { UploadSection(it, uploadStatus, app) }
+    }
+}
+
+@Composable
+private fun UploadSection(counts: OutboxCounts, status: UploadStatus, app: VerweilApp) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    Text("Upload", style = MaterialTheme.typography.titleMedium)
+    Text(
+        when {
+            counts.pending > 0 -> "${counts.pending} waiting for upload"
+            counts.rejected > 0 -> "Nothing else waiting for upload"
+            else -> "Everything is uploaded"
+        },
+    )
+    status.lastSuccessMs?.let { Text("Last upload ${DateFormat.getTimeInstance().format(Date(it))}") }
+    status.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    if (counts.pending > 0) {
+        OutlinedButton(onClick = { UploadWorker.uploadNow(context) }) { Text("Upload now") }
+    }
+    if (counts.rejected > 0) {
+        Text(
+            "Dawarich refused ${counts.rejected} ${if (counts.rejected == 1L) "item" else "items"}: ${counts.lastError}",
+            color = MaterialTheme.colorScheme.error,
+        )
+        OutlinedButton(
+            onClick = {
+                scope.launch(Dispatchers.IO) {
+                    app.outbox.retryRejected()
+                    UploadWorker.uploadNow(context)
+                }
+            },
+        ) { Text("Try again") }
     }
 }
 
@@ -132,5 +200,10 @@ private fun foregroundPermissions(): Array<String> = buildList {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
 }.toTypedArray()
 
-private fun Context.has(permission: String) =
-    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+private fun Context.ignoresBatteryOptimizations() =
+    getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+
+/** Asks directly instead of sending the user through the settings list: tracking is the app's whole purpose. */
+@SuppressLint("BatteryLife")
+private fun Context.batteryOptimizationRequest() =
+    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, "package:$packageName".toUri())
