@@ -10,7 +10,11 @@ import de.lukasrunge.verweil.core.model.TrackPoint
 import de.lukasrunge.verweil.core.place.InMemoryPlaceStore
 import de.lukasrunge.verweil.core.place.PlaceMemory
 import kotlinx.serialization.json.Json
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.ln
+import kotlin.math.sqrt
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.test.Test
@@ -32,13 +36,34 @@ class StayEngineTest {
             s.advance(5.seconds)
         }
 
-        val out = s.run()
+        val out = s.runToEnd()
 
         assertTrue(out.none { it is StayStarted })
         val distance = out.dawarichDistanceMeters()
         assertTrue(distance in 800.0..840.0, "walked about 833 m, got $distance")
         val points = out.filterIsInstance<TrackPoint>()
         points.zipWithNext { a, b -> assertTrue(distanceMeters(a.fix.point, b.fix.point) >= 15.0) }
+    }
+
+    @Test
+    fun smoothingKeepsANoisyWalkAtItsTrueLength() {
+        fun walk(config: EngineConfig): Double {
+            val s = Scenario()
+            val random = Random(3)
+            s.activity(Activity.WALKING)
+            // Five minutes east at 1.4 m/s, a fix every second with 4 m of jitter: 420 m.
+            repeat(300) { i ->
+                s.fix(i * 1.4 + random.gaussian() * 4, random.gaussian() * 4, accuracy = 6.0, speed = 1.4, bearing = 90.0)
+                s.advance(1.seconds)
+            }
+            return s.runToEnd(StayEngine(config)).dawarichDistanceMeters()
+        }
+
+        val everyFix = walk(EngineConfig(smoothTrack = false, simplifyToleranceM = null, minPointSpacingM = 0.0))
+        val smoothed = walk(EngineConfig())
+
+        assertTrue(everyFix > 420 * 1.3, "the jitter alone adds distance, got $everyFix m")
+        assertTrue(smoothed in 400.0..440.0, "walked 420 m, got $smoothed m")
     }
 
     @Test
@@ -94,13 +119,14 @@ class StayEngineTest {
         s.activity(Activity.WALKING)
         walkEast(s, fromM = 168.0, minutes = 5)
 
-        val out = s.run()
+        val out = s.runToEnd()
 
         val ended = out.filterIsInstance<StayEnded>().single()
         assertEquals(stillSince, ended.sinceMs)
         assertEquals(lastPresence, ended.untilMs)
-        val afterStay = out.dropWhile { it !is StayEnded }.drop(1)
-        assertTrue(afterStay.filterIsInstance<TrackPoint>().size > 10)
+        val afterStay = out.dropWhile { it !is StayEnded }
+        val distance = afterStay.dawarichDistanceMeters()
+        assertTrue(distance in 380.0..430.0, "walked about 413 m after the stay, got $distance")
     }
 
     @Test
@@ -149,7 +175,7 @@ class StayEngineTest {
         s.activity(Activity.WALKING)
         walkEast(s, fromM = 168.0, minutes = 2)
 
-        val out = s.run()
+        val out = s.runToEnd()
 
         assertTrue(out.none { it is StayStarted })
         val distance = out.dawarichDistanceMeters()
@@ -347,6 +373,9 @@ class StayEngineTest {
             }
         }
     }
+
+    /** Box–Muller; kotlin.random has no normal distribution. */
+    private fun Random.gaussian(): Double = sqrt(-2 * ln(1 - nextDouble())) * cos(2 * PI * nextDouble())
 
     private fun walkEast(s: Scenario, fromM: Double, minutes: Int) {
         s.activity(Activity.WALKING)

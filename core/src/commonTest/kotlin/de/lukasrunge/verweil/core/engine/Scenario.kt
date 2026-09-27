@@ -28,9 +28,19 @@ class Scenario(private val origin: GeoPoint = GeoPoint(52.5200, 13.4050)) {
         lon = origin.lon + eastM / (111_320.0 * cos(origin.lat * PI / 180)),
     )
 
-    fun fix(eastM: Double, northM: Double, accuracy: Double = 8.0) {
+    fun fix(
+        eastM: Double,
+        northM: Double,
+        accuracy: Double = 8.0,
+        speed: Double? = null,
+        bearing: Double? = null,
+    ) {
         val p = at(eastM, northM)
-        events += Fix(nowMs, p.lat, p.lon, accuracy)
+        val doppler = if (speed == null) null else 0.2
+        events += Fix(
+            nowMs, p.lat, p.lon, accuracy,
+            speed = speed, bearing = bearing, speedAccuracy = doppler, bearingAccuracy = bearing?.let { 10.0 },
+        )
     }
 
     fun activity(activity: Activity) {
@@ -59,6 +69,9 @@ class Scenario(private val origin: GeoPoint = GeoPoint(52.5200, 13.4050)) {
         fed = events.size
         return new.flatMap { engine.process(it) }
     }
+
+    /** Like [run], then stops tracking, which hands out the end of an open track. */
+    fun runToEnd(engine: StayEngine = StayEngine()): List<EngineOutput> = run(engine) + engine.finish()
 }
 
 /** Distance as Dawarich computes it: the sum over consecutive uploaded points. */

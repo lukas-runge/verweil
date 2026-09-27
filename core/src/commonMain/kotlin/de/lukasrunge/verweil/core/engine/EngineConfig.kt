@@ -2,6 +2,7 @@ package de.lukasrunge.verweil.core.engine
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /** Thresholds of the stay/move state machine. See docs/concept.md for their meaning. */
 data class EngineConfig(
@@ -17,6 +18,17 @@ data class EngineConfig(
     val minStay: Duration = 5.minutes,
     val leaveTimeout: Duration = 3.minutes,
     val exitFixesWithoutMotion: Int = 2,
+    /** Kalman-smooth track fixes with their Doppler velocity before thinning them. */
+    val smoothTrack: Boolean = true,
+    /** How freely the smoother lets the velocity change, in m²/s³; higher follows turns faster but keeps more jitter. */
+    val smoothingAccelerationNoise: Double = 1.0,
+    /** A longer silence between track fixes starts the smoother afresh. */
+    val smoothingMaxGap: Duration = 30.seconds,
+    /** Track points closer than this to the line between their neighbours are dropped (`D_simplify`); null thins by [minPointSpacingM]. */
+    val simplifyToleranceM: Double? = 3.0,
+    /** Longest time between two track points, so straight stretches still show their speed (`T_point`). */
+    val maxTrackPointInterval: Duration = 30.seconds,
+    /** Spacing of track points when [simplifyToleranceM] is null (`D_min`). */
     val minPointSpacingM: Double = 15.0,
     /** A point at the anchor this often during a stay; null turns heartbeats off. */
     val heartbeatInterval: Duration? = 60.minutes,
