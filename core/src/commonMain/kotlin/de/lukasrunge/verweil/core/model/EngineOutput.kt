@@ -8,8 +8,11 @@ data class GeoPoint(val lat: Double, val lon: Double)
 /** What the engine decided; the upload layer turns this into Dawarich points and visits. */
 sealed interface EngineOutput
 
-/** A filtered fix that belongs to a movement track. */
-data class TrackPoint(val fix: Fix, val activity: Activity) : EngineOutput
+/**
+ * A filtered fix that belongs to a movement track. [certain]: the [activity] is known, not guessed, e.g. driving while
+ * connected to the car.
+ */
+data class TrackPoint(val fix: Fix, val activity: Activity, val certain: Boolean = false) : EngineOutput
 
 /** A stay was recognised. [sinceMs] is backdated to when it most likely began. */
 data class StayStarted(val anchor: GeoPoint, val sinceMs: Long) : EngineOutput

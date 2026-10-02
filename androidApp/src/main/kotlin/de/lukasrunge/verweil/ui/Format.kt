@@ -49,6 +49,13 @@ fun formatDistance(resources: Resources, meters: Double): String {
 @Composable
 fun time(epochMs: Long): String = formatTime(LocalContext.current, epochMs)
 
+/** The short weekday, "Wed", for a time on another day than the one shown. */
+@Composable
+fun weekday(epochMs: Long): String {
+    val locale = LocalResources.current.configuration.locales[0]
+    return java.text.SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "EEE"), locale).format(Date(epochMs))
+}
+
 @Composable
 fun duration(durationMs: Long): String = formatDuration(LocalResources.current, durationMs)
 
@@ -83,6 +90,20 @@ fun TravelMode.label(): Int = when (this) {
     TravelMode.BOAT -> R.string.travel_boat
     TravelMode.VEHICLE -> R.string.travel_vehicle
     TravelMode.UNKNOWN -> R.string.travel_unknown
+}
+
+/** The mode in a word, for tiles and chips: "Bike", "Train". */
+fun TravelMode.shortLabel(): Int = when (this) {
+    TravelMode.WALKING -> R.string.travel_short_walking
+    TravelMode.RUNNING -> R.string.travel_short_running
+    TravelMode.CYCLING -> R.string.travel_short_cycling
+    TravelMode.DRIVING -> R.string.travel_short_driving
+    TravelMode.MOTORCYCLE -> R.string.travel_short_motorcycle
+    TravelMode.BUS -> R.string.travel_short_bus
+    TravelMode.TRAIN -> R.string.travel_short_train
+    TravelMode.FLYING -> R.string.travel_short_flying
+    TravelMode.BOAT -> R.string.travel_short_boat
+    TravelMode.VEHICLE, TravelMode.UNKNOWN -> label()
 }
 
 fun TravelMode.icon(): Int = when (this) {

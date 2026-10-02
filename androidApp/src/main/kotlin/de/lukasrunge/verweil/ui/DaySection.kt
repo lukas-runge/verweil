@@ -84,7 +84,11 @@ fun DaySection(
 
     val phone by remember(epochDay) { app.journal.segmentsFlow(startMs, endMs, Dispatchers.IO) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs, pullRefresh = pullRefresh)
+    // A corrected mode is in Dawarich at once; fetching the day again shows it.
+    var corrections by remember { mutableIntStateOf(0) }
+    var selected by remember { mutableStateOf<TimelineEntry?>(null) }
+    val timeline = remember { DawarichTimeline(app) }
+    val dawarich = rememberDawarichDay(app, startMs, endMs, refreshKey = lastUploadMs to corrections, pullRefresh = pullRefresh)
     val entries = remember(dawarich.entries, phone) { mergeTimeline(dawarich.entries.orEmpty(), phone) }
 
     // Names for stays only the phone knows; Dawarich names its own.
@@ -174,22 +178,38 @@ fun DaySection(
             )
         }
     } else {
-        // Room for the first time, which sits half above the first row.
-        Spacer(Modifier.height(20.dp))
+        // Room for the first time, which sits half above the first row, with its weekday if it began the day before.
+        Spacer(Modifier.height(if (entries.first().startMs < startMs) 36.dp else 20.dp))
         Timeline(
             entries = entries,
             dayStartMs = startMs,
+            dayEndMs = endMs,
             nowMs = nowMs,
             live = running && day == today,
             // Without Dawarich's answer everything is from the phone; marking every row would say nothing.
             markPending = dawarich.entries != null,
-            onOpenMove = openInDawarich,
+            onOpen = { selected = it },
         )
     }
     TextButton(onClick = openInDawarich, modifier = Modifier.padding(start = 12.dp, top = 4.dp)) {
         Icon(ImageVector.vectorResource(R.drawable.ic_open_in_new), contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.size(8.dp))
         Text(stringResource(R.string.action_open_day_in_dawarich))
+    }
+
+    selected?.let { entry ->
+        EntrySheet(
+            entry = entry,
+            dayStartMs = startMs,
+            dayEndMs = endMs,
+            nowMs = nowMs,
+            live = running && day == today && entry.ongoing,
+            favourites = settings.favouriteModes,
+            source = timeline,
+            onChanged = { corrections++ },
+            onOpenInDawarich = openInDawarich,
+            onDismiss = { selected = null },
+        )
     }
 
     if (pickDate) {

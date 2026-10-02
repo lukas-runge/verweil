@@ -48,6 +48,11 @@ data class WifiScan(
     val bssids: Set<String>,
 ) : SensorEvent
 
+/** The phone connected to a car (Android Auto, or a Bluetooth device the user marked as their car) or disconnected. */
+@Serializable
+@SerialName("car")
+data class CarConnection(override val timeMs: Long, val connected: Boolean) : SensorEvent
+
 /** The platform saw the phone leave the geofence around a stay anchor. A hint to look closer, not proof. */
 @Serializable
 @SerialName("geofence_exit")

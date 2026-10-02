@@ -8,6 +8,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,6 +47,20 @@ class OutboxTest {
         assertEquals(5, outbox.flush(client, batchSize = 2))
         assertEquals(List(3) { "/api/v1/overland/batches" }, paths)
         assertEquals(0, outbox.counts().pending)
+    }
+
+    @Test
+    fun aCertainMotionSurvivesTheQueue() = runTest {
+        outbox.add(listOf(PointItem(timeMs = 0, lat = 52.0, lon = 13.0, motion = "driving", motionConfidence = 1.0)))
+        val bodies = mutableListOf<String>()
+        val client = DawarichClient(
+            "https://dawarich.example.org", "secret", "pixel",
+            HttpClient(MockEngine { request -> bodies += (request.body as TextContent).text; respond("{}", HttpStatusCode.Created) }),
+        )
+
+        outbox.flush(client, batchSize = 10)
+
+        assertTrue("\"motion_confidence\":1.0" in bodies.single())
     }
 
     @Test

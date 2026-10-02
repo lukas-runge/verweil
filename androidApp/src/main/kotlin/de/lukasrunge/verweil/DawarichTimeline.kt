@@ -5,6 +5,10 @@ import de.lukasrunge.verweil.core.dawarich.DawarichException
 import de.lukasrunge.verweil.core.platformHttpClient
 import de.lukasrunge.verweil.core.timeline.CachedDay
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
+import de.lukasrunge.verweil.core.timeline.TrackSegment
+import de.lukasrunge.verweil.core.timeline.straightenTimeline
+import de.lukasrunge.verweil.core.timeline.tracksToSplit
+import de.lukasrunge.verweil.core.timeline.TravelMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -43,7 +47,10 @@ class DawarichTimeline(private val app: VerweilApp) {
         val http = platformHttpClient()
         return try {
             val client = DawarichClient(settings.serverUrl, settings.apiKey, settings.deviceId, http, settings.customHeaders)
-            val entries = client.timeline(dayStartMs, dayEndMs)
+            val entries = client.timeline(dayStartMs, dayEndMs).let { day ->
+                // Dawarich's tracks run through the stays; its segments tell where each leg goes.
+                straightenTimeline(day, day.tracksToSplit().associateWith { id -> client.segmentsOrNull(id) }.filterNotNullValues())
+            }
             val now = System.currentTimeMillis()
             withContext(Dispatchers.IO) { app.timelineCache.put(dayStartMs, entries, now) }
             DawarichDay(entries, now, loading = false, problem = null)
@@ -55,7 +62,34 @@ class DawarichTimeline(private val app: VerweilApp) {
             http.close()
         }
     }
+
+    /** The modes the user may pick for Dawarich's track; fails on servers without the track segments API. */
+    suspend fun travelModes(trackId: Long): List<TravelMode> = withClient { it.travelModes(trackId) }
+
+    /** Corrects the track's mode in Dawarich; returns its mode as Dawarich now sees it. */
+    suspend fun setTravelMode(trackId: Long, mode: TravelMode): TravelMode = withClient { it.setTravelMode(trackId, mode) }
+
+    private suspend fun <T> withClient(block: suspend (DawarichClient) -> T): T {
+        val settings = app.settings.current()
+        val http = platformHttpClient()
+        return try {
+            block(DawarichClient(settings.serverUrl, settings.apiKey, settings.deviceId, http, settings.customHeaders))
+        } finally {
+            http.close()
+        }
+    }
 }
+
+/** Null on servers without the track segments API, or when a track cannot be read: its legs are split by time. */
+private suspend fun DawarichClient.segmentsOrNull(trackId: Long): List<TrackSegment>? = try {
+    trackSegments(trackId)
+} catch (e: CancellationException) {
+    throw e
+} catch (_: Exception) {
+    null
+}
+
+private fun <K, V : Any> Map<K, V?>.filterNotNullValues(): Map<K, V> = buildMap { this@filterNotNullValues.forEach { (k, v) -> if (v != null) put(k, v) } }
 
 private fun Exception.toProblem(): TimelineProblem = when {
     this is DawarichException && status == 404 -> TimelineProblem.TOO_OLD

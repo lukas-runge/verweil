@@ -2,12 +2,15 @@ package de.lukasrunge.verweil.core.dawarich
 
 import de.lukasrunge.verweil.core.upload.PointItem
 import de.lukasrunge.verweil.core.model.GeoPoint
+import de.lukasrunge.verweil.core.timeline.PlaceTag
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
+import de.lukasrunge.verweil.core.timeline.TrackSegment
 import de.lukasrunge.verweil.core.timeline.TravelMode
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -28,8 +31,8 @@ class DawarichException(message: String, val status: Int? = null) : Exception(me
 }
 
 /**
- * Talks to existing Dawarich APIs, so no server changes are needed:
- * points through the Overland batch endpoint, and the day back through the timeline API. Visits are Dawarich's:
+ * Talks to existing Dawarich APIs: points through the Overland batch endpoint, the day back through the timeline API,
+ * and corrections of a track's mode through the track segments API, where the server has it. Visits are Dawarich's:
  * it detects them from the points.
  * [customHeaders] go along with every request, for servers behind an authenticating reverse proxy.
  */
@@ -75,6 +78,53 @@ class DawarichClient(
             .sortedBy { it.startMs }
     }
 
+    /**
+     * The modes of travel the user may pick for Dawarich's track [trackId]: those enabled in Dawarich's settings.
+     * Needs the track segments API (`GET /api/v1/tracks/:id/segments`); servers without it answer 404.
+     */
+    suspend fun travelModes(trackId: Long): List<TravelMode> =
+        segments(trackId).enabledModes.map(::travelMode).filter { it != TravelMode.UNKNOWN }
+
+    /**
+     * Corrects the track's mode of travel: every moving segment gets [mode], as if the user picked it in Dawarich.
+     * Returns the track's mode as Dawarich now sees it.
+     */
+    suspend fun setTravelMode(trackId: Long, mode: TravelMode): TravelMode {
+        val name = mode.dawarichName() ?: throw IllegalArgumentException("Dawarich has no mode for $mode")
+        val track = segments(trackId)
+        var dominant = track.dominantMode
+        track.segments.filter { it.transportationMode != STATIONARY && it.transportationMode != name }.forEach { segment ->
+            val response = http.patch("$baseUrl/api/v1/tracks/$trackId/segments/${segment.id}") {
+                bearerAuth(apiKey)
+                contentType(ContentType.Application.Json)
+                setBody(SegmentModeRequest(name))
+            }
+            response.requireSuccess()
+            dominant = response.body<TrackSegmentsDto>().dominantMode
+        }
+        return travelMode(dominant)
+    }
+
+    /**
+     * The stretches of Dawarich's track [trackId] with their mode, in order; null when Dawarich does not know their
+     * times. Needs the track segments API; servers without it answer 404.
+     */
+    suspend fun trackSegments(trackId: Long): List<TrackSegment>? = segments(trackId).segments.map { segment ->
+        TrackSegment(
+            startMs = segment.startAt?.toEpochMs() ?: return null,
+            endMs = segment.endAt?.toEpochMs() ?: return null,
+            distanceM = segment.distance ?: 0.0,
+            // Standing still is no mode of travel.
+            mode = travelMode(segment.transportationMode),
+        )
+    }
+
+    private suspend fun segments(trackId: Long): TrackSegmentsDto {
+        val response = http.get("$baseUrl/api/v1/tracks/$trackId/segments") { bearerAuth(apiKey) }
+        response.requireSuccess()
+        return response.body()
+    }
+
     private fun PointItem.toFeature() = OverlandFeature(
         geometry = PointGeometry(coordinates = listOf(lon, lat)),
         properties = OverlandProperties(
@@ -83,6 +133,7 @@ class DawarichClient(
             speed = speed,
             altitude = altitude,
             motion = motion?.let { listOf(it) },
+            motionConfidence = motionConfidence,
             deviceId = deviceId,
         ),
     )
@@ -106,6 +157,7 @@ private fun TimelineEntryDto.toEntry(): TimelineEntry? = when (type) {
         // Visits created with Dawarich's placeholder name "Suggested place" keep it at a place Dawarich already knows.
         name = listOf(name, place?.name, area?.name).firstOrNull { !it.isNullOrBlank() && it != SUGGESTED_PLACE },
         visitId = visitId,
+        tags = tags.map { PlaceTag(it.name, it.icon?.takeIf(String::isNotBlank), it.color?.takeIf(String::isNotBlank)) },
     )
     // Stationary tracks are stays Dawarich did not make a visit of; the visits already cover them.
     "journey" -> if (dominantMode == "stationary") null else TimelineEntry.Move(
@@ -113,6 +165,7 @@ private fun TimelineEntryDto.toEntry(): TimelineEntry? = when (type) {
         endMs = endedAt.toEpochMs(),
         distanceM = (distance ?: 0.0) * if (distanceUnit == "mi") METERS_PER_MILE else 1000.0,
         mode = travelMode(dominantMode),
+        trackId = trackId,
     )
     else -> null
 }
@@ -129,5 +182,20 @@ private fun travelMode(mode: String?): TravelMode = when (mode) {
     "boat" -> TravelMode.BOAT
     else -> TravelMode.UNKNOWN
 }
+
+private fun TravelMode.dawarichName(): String? = when (this) {
+    TravelMode.WALKING -> "walking"
+    TravelMode.RUNNING -> "running"
+    TravelMode.CYCLING -> "cycling"
+    TravelMode.DRIVING -> "driving"
+    TravelMode.MOTORCYCLE -> "motorcycle"
+    TravelMode.BUS -> "bus"
+    TravelMode.TRAIN -> "train"
+    TravelMode.FLYING -> "flying"
+    TravelMode.BOAT -> "boat"
+    TravelMode.VEHICLE, TravelMode.UNKNOWN -> null
+}
+
+private const val STATIONARY = "stationary"
 
 private const val METERS_PER_MILE = 1609.344

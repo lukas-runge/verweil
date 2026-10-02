@@ -29,6 +29,8 @@ internal data class OverlandProperties(
     val speed: Double? = null,
     val altitude: Double? = null,
     val motion: List<String>? = null,
+    /** 1.0: the motion is certain (needs a Dawarich that knows the field; others ignore it). */
+    @SerialName("motion_confidence") val motionConfidence: Double? = null,
     @SerialName("device_id") val deviceId: String? = null,
 )
 
@@ -96,6 +98,8 @@ internal data class TimelineEntryDto(
     val status: String? = null,
     val place: TimelinePlaceDto? = null,
     val area: TimelineAreaDto? = null,
+    /** The tags of the visit's place. */
+    val tags: List<TimelineTagDto> = emptyList(),
     // Journeys
     @SerialName("track_id") val trackId: Long? = null,
     /** In [distanceUnit], rounded to 0.1. */
@@ -107,7 +111,33 @@ internal data class TimelineEntryDto(
 )
 
 @Serializable
+internal data class TimelineTagDto(val name: String, val icon: String? = null, val color: String? = null)
+
+@Serializable
 internal data class TimelinePlaceDto(val name: String? = null, val lat: Double? = null, val lng: Double? = null)
 
 @Serializable
 internal data class TimelineAreaDto(val name: String? = null, val lat: Double? = null, val lng: Double? = null)
+
+// GET and PATCH /api/v1/tracks/:track_id/segments: app/controllers/api/v1/tracks/segments_controller.rb.
+
+@Serializable
+internal data class TrackSegmentsDto(
+    @SerialName("dominant_mode") val dominantMode: String? = null,
+    @SerialName("enabled_modes") val enabledModes: List<String> = emptyList(),
+    val segments: List<TrackSegmentDto> = emptyList(),
+)
+
+@Serializable
+internal data class TrackSegmentDto(
+    val id: Long,
+    @SerialName("transportation_mode") val transportationMode: String,
+    /** Null on old segments Dawarich anchored by point index only. */
+    @SerialName("start_at") val startAt: String? = null,
+    @SerialName("end_at") val endAt: String? = null,
+    /** Metres. */
+    val distance: Double? = null,
+)
+
+@Serializable
+internal data class SegmentModeRequest(@SerialName("transportation_mode") val transportationMode: String)

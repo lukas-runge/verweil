@@ -8,9 +8,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.hypot
 
-/** A track fix with the activity at the time it was taken. */
+/** A track fix with the activity at the time it was taken; [certain] when that activity is a fact, not a guess. */
 @Serializable
-data class TrackSample(val fix: Fix, val activity: Activity)
+data class TrackSample(val fix: Fix, val activity: Activity, val certain: Boolean = false)
 
 /**
  * Keeps the points that shape a track and drops those on the line between them.

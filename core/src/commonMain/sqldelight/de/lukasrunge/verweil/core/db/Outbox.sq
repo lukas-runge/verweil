@@ -10,12 +10,13 @@ CREATE TABLE pending_point (
     speed REAL,
     altitude REAL,
     motion TEXT,
-    error TEXT
+    error TEXT,
+    motion_confidence REAL
 );
 
 insertPoint:
-INSERT INTO pending_point (time_ms, lat, lon, accuracy, speed, altitude, motion)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO pending_point (time_ms, lat, lon, accuracy, speed, altitude, motion, motion_confidence)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 oldestPoints:
 SELECT * FROM pending_point WHERE error IS NULL ORDER BY time_ms, id LIMIT :limit;
