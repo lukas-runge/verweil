@@ -1,7 +1,5 @@
 package de.lukasrunge.verweil.ui
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -43,7 +41,6 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import de.lukasrunge.verweil.R
 import de.lukasrunge.verweil.core.timeline.Source
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
@@ -68,7 +65,7 @@ fun Timeline(
     nowMs: Long,
     live: Boolean,
     markPending: Boolean,
-    onOpenMove: () -> Unit,
+    onOpen: (TimelineEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val rows = remember(entries) {
@@ -97,7 +94,7 @@ fun Timeline(
                         // What the phone saw where Dawarich has a hole just fills it; Dawarich keeps its own view.
                         Source.PHONE_MISSING, Source.DAWARICH -> null
                     },
-                    onOpenMove = onOpenMove,
+                    onClick = { onOpen(row.entry) },
                 )
                 is TimelineRow.Gap -> GapRow(row)
             }
@@ -138,25 +135,9 @@ private fun BoundaryTime(epochMs: Long) {
 }
 
 @Composable
-private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, note: Int?, onOpenMove: () -> Unit) {
-    val context = LocalContext.current
+private fun EntryRow(entry: TimelineEntry, startMs: Long, nowMs: Long, live: Boolean, note: Int?, onClick: () -> Unit) {
     val colors = LocalStateColors.current
     val endMs = if (live) nowMs else entry.endMs
-    val onClick = when (entry) {
-        is TimelineEntry.Stay -> {
-            {
-                // Any map app; "geo:" with a query pins the exact point.
-                entry.point?.let { point ->
-                    try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, "geo:0,0?q=${point.lat},${point.lon}".toUri()))
-                    } catch (_: ActivityNotFoundException) {
-                    }
-                }
-                Unit
-            }
-        }
-        is TimelineEntry.Move -> onOpenMove
-    }
     val isStay = entry is TimelineEntry.Stay
     Row(
         modifier = Modifier

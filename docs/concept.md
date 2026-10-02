@@ -291,7 +291,8 @@ Thresholds are the hard part, and walking around for every change doesn't scale.
 - Deciding what a visit is, which Dawarich's detection does from the points.
 - Any UI beyond status, settings, a debug view and a timeline of any day. The timeline reads Dawarich's own
   (`GET /api/v1/timeline`, Dawarich 1.3 and later) and adds what the phone recognised that Dawarich does not show
-  yet, such as the ongoing stay. Editing history stays in Dawarich.
+  yet, such as the ongoing stay. Editing history stays in Dawarich; the one exception is a track's mode of travel,
+  which the app corrects through Dawarich's track segments API, so Dawarich holds the correction.
 
 ## Open questions
 

@@ -12,10 +12,19 @@ import androidx.datastore.preferences.preferencesDataStore
 import de.lukasrunge.verweil.core.dawarich.DawarichCredentials
 import de.lukasrunge.verweil.core.dawarich.formatHeaderLines
 import de.lukasrunge.verweil.core.dawarich.parseHeaderLines
+import de.lukasrunge.verweil.core.timeline.TravelMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
+
+/** Modes the user can say they travelled by; the phone's own vague guesses are not among them. */
+val PICKABLE_MODES = TravelMode.entries - TravelMode.VEHICLE - TravelMode.UNKNOWN
+
+/** As many favourites as fit side by side in the mode picker. */
+const val MAX_FAVOURITES = 4
+
+val DEFAULT_FAVOURITE_MODES = listOf(TravelMode.WALKING, TravelMode.CYCLING, TravelMode.DRIVING, TravelMode.TRAIN)
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -37,6 +46,8 @@ data class SettingsValues(
     val setupDone: Boolean = false,
     /** Bluetooth addresses of the user's cars: connected to one, the user is driving. */
     val carDevices: Set<String> = emptySet(),
+    /** The modes offered first when correcting how the user travelled, in [TravelMode] order. */
+    val favouriteModes: List<TravelMode> = DEFAULT_FAVOURITE_MODES,
 ) {
     val isConfigured: Boolean get() = serverUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -62,6 +73,7 @@ class Settings(private val context: Context) {
         val trackingEnabled = booleanPreferencesKey("tracking_enabled")
         val setupDone = booleanPreferencesKey("setup_done")
         val carDevices = stringSetPreferencesKey("car_devices")
+        val favouriteModes = stringSetPreferencesKey("favourite_modes")
         val wifiSalt = stringPreferencesKey("wifi_salt")
         val lastUploadMs = longPreferencesKey("last_upload_ms")
         val uploadError = stringPreferencesKey("upload_error")
@@ -82,6 +94,9 @@ class Settings(private val context: Context) {
             trackingEnabled = prefs[Keys.trackingEnabled] ?: defaults.trackingEnabled,
             setupDone = prefs[Keys.setupDone] ?: defaults.setupDone,
             carDevices = prefs[Keys.carDevices] ?: defaults.carDevices,
+            favouriteModes = prefs[Keys.favouriteModes]
+                ?.let { names -> PICKABLE_MODES.filter { it.name in names } }?.takeIf { it.isNotEmpty() }
+                ?: defaults.favouriteModes,
         )
     }
 
@@ -102,6 +117,8 @@ class Settings(private val context: Context) {
     suspend fun setRecordRawEvents(enabled: Boolean) = edit { it[Keys.recordRawEvents] = enabled }
 
     suspend fun setCarDevices(addresses: Set<String>) = edit { it[Keys.carDevices] = addresses }
+
+    suspend fun setFavouriteModes(modes: Set<TravelMode>) = edit { it[Keys.favouriteModes] = modes.map { m -> m.name }.toSet() }
 
     suspend fun setLookUpPlaceNames(enabled: Boolean) = edit { it[Keys.lookUpPlaceNames] = enabled }
 

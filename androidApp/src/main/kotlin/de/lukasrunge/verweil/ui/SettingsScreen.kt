@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -26,19 +28,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.lukasrunge.verweil.BuildConfig
+import de.lukasrunge.verweil.MAX_FAVOURITES
+import de.lukasrunge.verweil.PICKABLE_MODES
 import de.lukasrunge.verweil.R
 import de.lukasrunge.verweil.SettingsValues
 import de.lukasrunge.verweil.VerweilApp
 import de.lukasrunge.verweil.core.dawarich.formatHeaderLines
 import de.lukasrunge.verweil.core.dawarich.parseHeaderLines
+import de.lukasrunge.verweil.core.timeline.TravelMode
 import de.lukasrunge.verweil.core.tracking.Tracker
 import de.lukasrunge.verweil.tracking.TrackingService
 import de.lukasrunge.verweil.tracking.canUseBluetooth
@@ -47,7 +54,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Dialog { DeviceName, Headers, Car, SignOut, ForgetPlaces, ClearTimeline }
+private enum class Dialog { DeviceName, Headers, Car, FavouriteModes, SignOut, ForgetPlaces, ClearTimeline }
 
 @Composable
 fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit, onOpenDiagnostics: () -> Unit) {
@@ -108,6 +115,12 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
                 if (context.canUseBluetooth()) dialog = Dialog.Car
                 else askBluetooth.launch(Manifest.permission.BLUETOOTH_CONNECT)
             },
+        )
+        ListRow(
+            R.drawable.ic_route,
+            stringResource(R.string.settings_favourite_modes),
+            detail = settings.favouriteModes.map { stringResource(it.shortLabel()) }.joinToString(", "),
+            onClick = { dialog = Dialog.FavouriteModes },
         )
         ListRow(
             R.drawable.ic_battery_alert,
@@ -177,6 +190,11 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
             paired = paired,
             initial = settings.carDevices,
             onSave = { scope.launch { app.settings.setCarDevices(it) } },
+            onDismiss = { dialog = null },
+        )
+        Dialog.FavouriteModes -> FavouriteModesDialog(
+            initial = settings.favouriteModes,
+            onSave = { scope.launch { app.settings.setFavouriteModes(it) } },
             onDismiss = { dialog = null },
         )
         Dialog.SignOut -> SignOutDialog(
@@ -295,6 +313,47 @@ private fun CarDialog(paired: Map<String, String>, initial: Set<String>, onSave:
         confirmButton = {
             TextButton(onClick = {
                 onSave(chosen.toSet())
+                onDismiss()
+            }) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+/** Up to [MAX_FAVOURITES] modes, offered as tiles when correcting how the user travelled. */
+@Composable
+private fun FavouriteModesDialog(initial: List<TravelMode>, onSave: (Set<TravelMode>) -> Unit, onDismiss: () -> Unit) {
+    var chosen by rememberSaveable { mutableStateOf(initial.map { it.name }) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_favourite_modes)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.favourite_modes_text), style = MaterialTheme.typography.bodyMedium)
+                PICKABLE_MODES.forEach { mode ->
+                    val checked = mode.name in chosen
+                    val enabled = checked || chosen.size < MAX_FAVOURITES
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = enabled) { chosen = if (checked) chosen - mode.name else chosen + mode.name },
+                    ) {
+                        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled, modifier = Modifier.padding(12.dp))
+                        Icon(
+                            ImageVector.vectorResource(mode.icon()),
+                            contentDescription = null,
+                            tint = LocalStateColors.current.moving,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(stringResource(mode.shortLabel()), modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = chosen.isNotEmpty(), onClick = {
+                onSave(PICKABLE_MODES.filter { it.name in chosen }.toSet())
                 onDismiss()
             }) { Text(stringResource(R.string.action_save)) }
         },

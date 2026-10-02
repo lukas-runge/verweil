@@ -5,6 +5,7 @@ import de.lukasrunge.verweil.core.dawarich.DawarichException
 import de.lukasrunge.verweil.core.platformHttpClient
 import de.lukasrunge.verweil.core.timeline.CachedDay
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
+import de.lukasrunge.verweil.core.timeline.TravelMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -51,6 +52,22 @@ class DawarichTimeline(private val app: VerweilApp) {
             throw e
         } catch (e: Exception) {
             DawarichDay(cached?.entries, cached?.fetchedMs, loading = false, problem = e.toProblem())
+        } finally {
+            http.close()
+        }
+    }
+
+    /** The modes the user may pick for Dawarich's track; fails on servers without the track segments API. */
+    suspend fun travelModes(trackId: Long): List<TravelMode> = withClient { it.travelModes(trackId) }
+
+    /** Corrects the track's mode in Dawarich; returns its mode as Dawarich now sees it. */
+    suspend fun setTravelMode(trackId: Long, mode: TravelMode): TravelMode = withClient { it.setTravelMode(trackId, mode) }
+
+    private suspend fun <T> withClient(block: suspend (DawarichClient) -> T): T {
+        val settings = app.settings.current()
+        val http = platformHttpClient()
+        return try {
+            block(DawarichClient(settings.serverUrl, settings.apiKey, settings.deviceId, http, settings.customHeaders))
         } finally {
             http.close()
         }
