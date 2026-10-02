@@ -79,7 +79,9 @@ All logic lives in a platform-independent engine that consumes a stream of event
 
 While connected to a car, every activity counts as `VEHICLE`: in town traffic the phone's own guess is often cycling,
 and at a red light still. Connecting starts a departure like a moving activity. Disconnecting changes nothing until
-the phone's next activity. Dawarich takes the `driving` motion of the track points as a strong hint for the mode.
+the phone's next activity. Points taken while connected say that their `driving` is certain (`motion_confidence: 1.0`
+in the Overland properties): Dawarich weighs a plain motion against the speed, and in town traffic the speed of a car
+looks like cycling. A Dawarich that knows the field takes a certain motion as the mode; others ignore it.
 
 The engine uses no wall clock. Time comes only from the events.
 That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-replay)).

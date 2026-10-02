@@ -133,6 +133,7 @@ class DawarichClient(
             speed = speed,
             altitude = altitude,
             motion = motion?.let { listOf(it) },
+            motionConfidence = motionConfidence,
             deviceId = deviceId,
         ),
     )

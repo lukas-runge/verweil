@@ -17,6 +17,8 @@ data class PointItem(
     val altitude: Double? = null,
     /** Overland motion value: stationary, walking, running, cycling, driving. */
     val motion: String? = null,
+    /** 1.0 when [motion] is a fact, e.g. driving while connected to the car; null for the phone's guess. */
+    val motionConfidence: Double? = null,
 )
 
 /**
@@ -34,6 +36,7 @@ fun EngineOutput.toUploadItems(): List<PointItem> = when (this) {
             speed = fix.speed,
             altitude = fix.altitude,
             motion = activity.overlandMotion(),
+            motionConfidence = if (certain) 1.0 else null,
         ),
     )
 

@@ -22,7 +22,7 @@ class Outbox(database: VerweilDatabase) {
     private val queries = database.outboxQueries
 
     fun add(points: List<PointItem>) = queries.transaction {
-        points.forEach { queries.insertPoint(it.timeMs, it.lat, it.lon, it.accuracy, it.speed, it.altitude, it.motion) }
+        points.forEach { queries.insertPoint(it.timeMs, it.lat, it.lon, it.accuracy, it.speed, it.altitude, it.motion, it.motionConfidence) }
     }
 
     fun counts(): OutboxCounts = queries.counts().executeAsOne().toCounts()
@@ -53,7 +53,7 @@ class Outbox(database: VerweilDatabase) {
             val ids = batch.map { it.id }
             try {
                 client.sendPoints(
-                    batch.map { PointItem(it.time_ms, it.lat, it.lon, it.accuracy, it.speed, it.altitude, it.motion) },
+                    batch.map { PointItem(it.time_ms, it.lat, it.lon, it.accuracy, it.speed, it.altitude, it.motion, it.motion_confidence) },
                 )
                 queries.deletePoints(ids)
                 sent += ids.size

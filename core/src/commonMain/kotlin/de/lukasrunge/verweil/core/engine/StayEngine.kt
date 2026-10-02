@@ -402,15 +402,16 @@ class StayEngine(
             fix
         }
         s.simplifier.add(
-            TrackSample(sample, s.activity),
+            // Connected to the car, the activity is VEHICLE and a fact.
+            TrackSample(sample, s.activity, certain = s.inCar),
             config.simplifyToleranceM,
             config.minPointSpacingM,
             config.maxTrackPointInterval.inWholeMilliseconds,
-        ).forEach { out += TrackPoint(it.fix, it.activity) }
+        ).forEach { out += TrackPoint(it.fix, it.activity, it.certain) }
     }
 
     private fun flushTrack(out: MutableList<EngineOutput>) {
-        s.simplifier.flush().forEach { out += TrackPoint(it.fix, it.activity) }
+        s.simplifier.flush().forEach { out += TrackPoint(it.fix, it.activity, it.certain) }
     }
 
     private fun rememberRecent(fix: Fix) {

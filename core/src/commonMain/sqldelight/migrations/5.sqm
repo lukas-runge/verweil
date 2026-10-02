@@ -1,0 +1,2 @@
+-- Points can say that their motion is a fact, e.g. driving while connected to the car.
+ALTER TABLE pending_point ADD COLUMN motion_confidence REAL;

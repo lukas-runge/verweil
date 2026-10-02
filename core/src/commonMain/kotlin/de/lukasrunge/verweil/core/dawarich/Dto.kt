@@ -29,6 +29,8 @@ internal data class OverlandProperties(
     val speed: Double? = null,
     val altitude: Double? = null,
     val motion: List<String>? = null,
+    /** 1.0: the motion is certain (needs a Dawarich that knows the field; others ignore it). */
+    @SerialName("motion_confidence") val motionConfidence: Double? = null,
     @SerialName("device_id") val deviceId: String? = null,
 )
 

@@ -57,6 +57,16 @@ class DawarichClientTest {
         assertEquals("walking", properties["motion"]!!.jsonArray.single().jsonPrimitive.content)
         assertEquals("pixel", properties["device_id"]!!.jsonPrimitive.content)
         assertFalse("speed" in properties, "unknown values are omitted, not sent as null")
+        assertFalse("motion_confidence" in properties, "a guess goes without a confidence")
+    }
+
+    @Test
+    fun aCertainMotionSaysSo() = runTest {
+        client().sendPoints(listOf(PointItem(timeMs = 0, lat = 52.52, lon = 13.405, motion = "driving", motionConfidence = 1.0)))
+
+        val properties = requests.single().second["locations"]!!.jsonArray.single().jsonObject["properties"]!!.jsonObject
+        assertEquals("driving", properties["motion"]!!.jsonArray.single().jsonPrimitive.content)
+        assertEquals(1.0, properties["motion_confidence"]!!.jsonPrimitive.double)
     }
 
     @Test

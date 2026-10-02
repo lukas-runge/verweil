@@ -389,7 +389,23 @@ class StayEngineTest {
         assertTrue(out.none { it is StayStarted }, "a red light is no stay")
         val points = out.filterIsInstance<TrackPoint>()
         assertTrue(points.filter { it.fix.timeMs < parkedAt }.all { it.activity == Activity.VEHICLE })
+        assertTrue(points.filter { it.fix.timeMs < parkedAt }.all { it.certain }, "connected to the car, driving is a fact")
         assertEquals(Activity.WALKING, points.last().activity, "out of the car, the phone decides again")
+        assertTrue(points.filter { it.fix.timeMs > parkedAt }.none { it.certain })
+    }
+
+    @Test
+    fun thePhonesOwnGuessOfAVehicleIsNoCertainty() {
+        val s = Scenario()
+        s.activity(Activity.VEHICLE)
+        repeat(60) { i ->
+            s.fix(eastM = i * 40.0, northM = 0.0, speed = 8.0)
+            s.advance(5.seconds)
+        }
+
+        val points = s.runToEnd().filterIsInstance<TrackPoint>()
+
+        assertTrue(points.isNotEmpty() && points.none { it.certain }, "car or train, and maybe neither")
     }
 
     @Test
