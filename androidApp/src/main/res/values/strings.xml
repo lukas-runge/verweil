@@ -123,6 +123,11 @@
     <string name="timeline_too_old">Your Dawarich has no timeline yet; it came with version 1.3. This is what this phone recognised.</string>
     <string name="timeline_empty_phone">This phone recognised nothing on this day.</string>
     <string name="timeline_stay">Stay</string>
+    <string name="timeline_midnight">Midnight</string>
+    <string name="timeline_today_share">%1$s on this day</string>
+    <string name="timeline_from_other_day">since %1$s %2$s</string>
+    <string name="timeline_until_other_day">until %1$s %2$s</string>
+    <string name="timeline_total">%1$s in all</string>
     <string name="timeline_since">Since %1$s</string>
     <string name="timeline_open_since">Open since %1$s</string>
     <string name="timeline_move_detail">%1$s in %2$s</string>

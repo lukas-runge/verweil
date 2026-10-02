@@ -178,11 +178,12 @@ fun DaySection(
             )
         }
     } else {
-        // Room for the first time, which sits half above the first row.
-        Spacer(Modifier.height(20.dp))
+        // Room for the first time, which sits half above the first row, with its weekday if it began the day before.
+        Spacer(Modifier.height(if (entries.first().startMs < startMs) 36.dp else 20.dp))
         Timeline(
             entries = entries,
             dayStartMs = startMs,
+            dayEndMs = endMs,
             nowMs = nowMs,
             live = running && day == today,
             // Without Dawarich's answer everything is from the phone; marking every row would say nothing.

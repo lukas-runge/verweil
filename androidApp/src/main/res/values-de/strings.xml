@@ -121,6 +121,11 @@
     <string name="timeline_too_old">Dein Dawarich hat noch keine Timeline; die kam mit Version 1.3. Zu sehen ist, was dieses Telefon erkannt hat.</string>
     <string name="timeline_empty_phone">Dieses Telefon hat an diesem Tag nichts erkannt.</string>
     <string name="timeline_stay">Aufenthalt</string>
+    <string name="timeline_midnight">Mitternacht</string>
+    <string name="timeline_today_share">%1$s an diesem Tag</string>
+    <string name="timeline_from_other_day">seit %1$s %2$s</string>
+    <string name="timeline_until_other_day">bis %1$s %2$s</string>
+    <string name="timeline_total">insgesamt %1$s</string>
     <string name="timeline_since">Seit %1$s</string>
     <string name="timeline_open_since">Offen seit %1$s</string>
     <string name="timeline_move_detail">%1$s in %2$s</string>
