@@ -58,6 +58,8 @@ sealed interface TimelineEntry {
         val mode: TravelMode,
         override val ongoing: Boolean = false,
         override val source: Source = Source.DAWARICH,
+        /** Dawarich's track, e.g. to correct its mode; null for moves only the phone knows. */
+        val trackId: Long? = null,
     ) : TimelineEntry
 }
 

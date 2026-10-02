@@ -111,3 +111,18 @@ internal data class TimelinePlaceDto(val name: String? = null, val lat: Double? 
 
 @Serializable
 internal data class TimelineAreaDto(val name: String? = null, val lat: Double? = null, val lng: Double? = null)
+
+// GET and PATCH /api/v1/tracks/:track_id/segments: app/controllers/api/v1/tracks/segments_controller.rb.
+
+@Serializable
+internal data class TrackSegmentsDto(
+    @SerialName("dominant_mode") val dominantMode: String? = null,
+    @SerialName("enabled_modes") val enabledModes: List<String> = emptyList(),
+    val segments: List<TrackSegmentDto> = emptyList(),
+)
+
+@Serializable
+internal data class TrackSegmentDto(val id: Long, @SerialName("transportation_mode") val transportationMode: String)
+
+@Serializable
+internal data class SegmentModeRequest(@SerialName("transportation_mode") val transportationMode: String)
