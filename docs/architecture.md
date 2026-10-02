@@ -23,7 +23,7 @@ That keeps the engine testable on a desktop JVM and identical on both platforms.
 | `place` | Wi-Fi fingerprints and `PlaceMemory`, which recognises known places and learns from every stay; stored in SQLite or in memory for replays |
 | `track` | `TrackSimplifier`, streaming Douglas–Peucker, and `TrackSmoother`, a constant-velocity Kalman filter with Doppler velocity (off by default, for replays); both part of `EngineState` |
 | `journal` | `Journal`: the engine's decisions as stays and moves with their distance; kept 30 days on the device |
-| `timeline` | `TimelineEntry` (stay or move with mode of travel), `mergeTimeline`: Dawarich's timeline of a day followed by what the phone recognised since; `TimelineCache` keeps every fetched day for offline use |
+| `timeline` | `TimelineEntry` (stay or move with mode of travel), `straightenTimeline`: Dawarich's day without overlaps (its tracks run into and through visits; they are trimmed and split, with distances from the track segments); `mergeTimeline`: Dawarich's timeline of a day followed by what the phone recognised since; `TimelineCache` keeps every fetched day for offline use |
 | `tracking` | `Tracker`: the engine with a memory. Restores the saved state and stores it with the uploads of a step in one transaction; steps without uploads save on mode changes or every 30 s |
 | `geo` | Distance and accuracy-weighted median |
 | `upload` | Mapping engine output to Dawarich items; `Outbox`, the persistent upload queue, which sets aside data the server refuses |

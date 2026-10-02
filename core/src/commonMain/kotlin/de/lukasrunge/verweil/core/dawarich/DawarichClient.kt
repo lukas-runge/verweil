@@ -3,6 +3,7 @@ package de.lukasrunge.verweil.core.dawarich
 import de.lukasrunge.verweil.core.upload.PointItem
 import de.lukasrunge.verweil.core.model.GeoPoint
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
+import de.lukasrunge.verweil.core.timeline.TrackSegment
 import de.lukasrunge.verweil.core.timeline.TravelMode
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -101,6 +102,20 @@ class DawarichClient(
             dominant = response.body<TrackSegmentsDto>().dominantMode
         }
         return travelMode(dominant)
+    }
+
+    /**
+     * The stretches of Dawarich's track [trackId] with their mode, in order; null when Dawarich does not know their
+     * times. Needs the track segments API; servers without it answer 404.
+     */
+    suspend fun trackSegments(trackId: Long): List<TrackSegment>? = segments(trackId).segments.map { segment ->
+        TrackSegment(
+            startMs = segment.startAt?.toEpochMs() ?: return null,
+            endMs = segment.endAt?.toEpochMs() ?: return null,
+            distanceM = segment.distance ?: 0.0,
+            // Standing still is no mode of travel.
+            mode = travelMode(segment.transportationMode),
+        )
     }
 
     private suspend fun segments(trackId: Long): TrackSegmentsDto {

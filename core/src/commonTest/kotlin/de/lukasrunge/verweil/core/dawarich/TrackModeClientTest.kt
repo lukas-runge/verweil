@@ -56,6 +56,30 @@ class TrackModeClientTest {
     }
 
     @Test
+    fun segmentsWithoutTimesCannotSplitATrack() = runTest {
+        assertEquals(null, client().trackSegments(trackId = 38), "Dawarich anchored these by point index only")
+    }
+
+    @Test
+    fun segmentsCarryTheirTimesDistanceAndMode() = runTest {
+        val body = """
+            {"track_id": 219, "dominant_mode": "cycling", "enabled_modes": ["cycling"], "segments": [
+              {"id": 1, "transportation_mode": "cycling", "start_at": "2026-10-01T13:27:00+02:00", "end_at": "2026-10-01T13:31:00+02:00", "distance": 1100},
+              {"id": 2, "transportation_mode": "stationary", "start_at": "2026-10-01T13:31:00+02:00", "end_at": "2026-10-01T13:48:00+02:00", "distance": null}
+            ]}
+        """.trimIndent()
+        val client = DawarichClient("https://d.example.org", "secret", "pixel", HttpClient(MockEngine { respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }))
+
+        val (ride, stop) = client.trackSegments(trackId = 219)!!
+
+        assertEquals(TravelMode.CYCLING, ride.mode)
+        assertEquals(1100.0, ride.distanceM)
+        assertEquals(kotlin.time.Instant.parse("2026-10-01T13:31:00+02:00").toEpochMilliseconds(), ride.endMs)
+        assertEquals(TravelMode.UNKNOWN, stop.mode)
+        assertEquals(0.0, stop.distanceM)
+    }
+
+    @Test
     fun aServerWithoutTheSegmentsApiAnswers404() = runTest {
         val e = assertFailsWith<DawarichException> { client(HttpStatusCode.NotFound).travelModes(trackId = 38) }
         assertEquals(404, e.status)

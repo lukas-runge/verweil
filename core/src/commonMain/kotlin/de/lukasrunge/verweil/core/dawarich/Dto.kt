@@ -122,7 +122,15 @@ internal data class TrackSegmentsDto(
 )
 
 @Serializable
-internal data class TrackSegmentDto(val id: Long, @SerialName("transportation_mode") val transportationMode: String)
+internal data class TrackSegmentDto(
+    val id: Long,
+    @SerialName("transportation_mode") val transportationMode: String,
+    /** Null on old segments Dawarich anchored by point index only. */
+    @SerialName("start_at") val startAt: String? = null,
+    @SerialName("end_at") val endAt: String? = null,
+    /** Metres. */
+    val distance: Double? = null,
+)
 
 @Serializable
 internal data class SegmentModeRequest(@SerialName("transportation_mode") val transportationMode: String)
