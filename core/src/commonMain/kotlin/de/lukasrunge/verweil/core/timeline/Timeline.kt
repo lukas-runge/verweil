@@ -28,6 +28,10 @@ enum class TravelMode {
     UNKNOWN,
 }
 
+/** A tag the user gave a place in Dawarich; [color] is a hex colour like "#FF5733", [icon] an emoji. */
+@Serializable
+data class PlaceTag(val name: String, val icon: String? = null, val color: String? = null)
+
 /** One row of the day: a stay, or a move between two stays. */
 @Serializable
 sealed interface TimelineEntry {
@@ -48,6 +52,8 @@ sealed interface TimelineEntry {
         override val source: Source = Source.DAWARICH,
         /** Dawarich's visit, e.g. to open it; null for stays only the phone knows. */
         val visitId: Long? = null,
+        /** The tags of Dawarich's place, e.g. "Home"; for a stay of the phone those of Dawarich's place nearby. */
+        val tags: List<PlaceTag> = emptyList(),
     ) : TimelineEntry
 
     @Serializable
@@ -133,14 +139,16 @@ private fun TimelineEntry.withSource(source: Source): TimelineEntry = when (this
 
 private fun TimelineEntry.namedLike(server: List<TimelineEntry>): TimelineEntry {
     if (this !is TimelineEntry.Stay || point == null) return this
-    return server.nameNear(point)?.let { copy(name = it) } ?: this
+    return server.placeNear(point)?.let { copy(name = it.name, tags = it.tags) } ?: this
 }
 
 /** The name Dawarich gives the place at [point], if one of these stays is within [SAME_PLACE_M]. */
-fun List<TimelineEntry>.nameNear(point: GeoPoint): String? = filterIsInstance<TimelineEntry.Stay>()
+fun List<TimelineEntry>.nameNear(point: GeoPoint): String? = placeNear(point)?.name
+
+/** Dawarich's named stay closest to [point], within [SAME_PLACE_M]. */
+private fun List<TimelineEntry>.placeNear(point: GeoPoint): TimelineEntry.Stay? = filterIsInstance<TimelineEntry.Stay>()
     .filter { it.name != null && it.point != null && distanceMeters(it.point, point) <= SAME_PLACE_M }
     .minByOrNull { distanceMeters(it.point!!, point) }
-    ?.name
 
 /** How many different places the stays are at: stays within [SAME_PLACE_M] of each other count once. */
 fun List<TimelineEntry>.placeCount(): Int {

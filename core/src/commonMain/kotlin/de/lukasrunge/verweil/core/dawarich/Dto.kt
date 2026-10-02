@@ -96,6 +96,8 @@ internal data class TimelineEntryDto(
     val status: String? = null,
     val place: TimelinePlaceDto? = null,
     val area: TimelineAreaDto? = null,
+    /** The tags of the visit's place. */
+    val tags: List<TimelineTagDto> = emptyList(),
     // Journeys
     @SerialName("track_id") val trackId: Long? = null,
     /** In [distanceUnit], rounded to 0.1. */
@@ -105,6 +107,9 @@ internal data class TimelineEntryDto(
     /** Set on the second day of a journey across midnight: that day's share of the distance. */
     @SerialName("day_distance") val dayDistance: Double? = null,
 )
+
+@Serializable
+internal data class TimelineTagDto(val name: String, val icon: String? = null, val color: String? = null)
 
 @Serializable
 internal data class TimelinePlaceDto(val name: String? = null, val lat: Double? = null, val lng: Double? = null)

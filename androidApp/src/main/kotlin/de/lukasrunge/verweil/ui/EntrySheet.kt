@@ -124,7 +124,7 @@ private fun span(startMs: Long, endMs: Long, live: Boolean, day: LongRange): Str
 @Composable
 private fun StayDetails(stay: TimelineEntry.Stay, span: String, durationMs: Long, onOpenInDawarich: () -> Unit) {
     val context = LocalContext.current
-    Text(stay.name ?: stringResource(R.string.timeline_stay), style = MaterialTheme.typography.headlineSmall)
+    PlaceName(stay.name ?: stringResource(R.string.timeline_stay), stay.tags, style = MaterialTheme.typography.headlineSmall)
     Text("$span · ${duration(durationMs)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
     PendingNote(stay.source)
     Spacer(Modifier.height(16.dp))

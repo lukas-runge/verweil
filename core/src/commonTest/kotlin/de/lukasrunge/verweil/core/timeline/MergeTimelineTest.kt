@@ -59,12 +59,13 @@ class MergeTimelineTest {
 
     @Test
     fun aStayOfThePhoneTakesDawarichsNameForTheSamePlace() {
-        val dawarich = listOf(serverStay(0, 60, "13407 Klamannstraße 16 (House)"), serverMove(60, 120))
+        val dawarich = listOf(serverStay(0, 60, "13407 Klamannstraße 16 (House)").copy(tags = listOf(PlaceTag("Home"))), serverMove(60, 120))
         val nextDoor = GeoPoint(here.lat + 0.0003, here.lon)
 
         val merged = mergeTimeline(dawarich, listOf(stay(120, 130, ongoing = true, at = nextDoor, name = "Klamannstraße 16, Berlin")))
 
         assertEquals("13407 Klamannstraße 16 (House)", (merged.last() as TimelineEntry.Stay).name)
+        assertEquals(listOf("Home"), (merged.last() as TimelineEntry.Stay).tags.map { it.name }, "and the place's tags")
         assertEquals(1, merged.placeCount())
     }
 

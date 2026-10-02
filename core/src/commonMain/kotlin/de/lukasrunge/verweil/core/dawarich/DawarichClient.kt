@@ -2,6 +2,7 @@ package de.lukasrunge.verweil.core.dawarich
 
 import de.lukasrunge.verweil.core.upload.PointItem
 import de.lukasrunge.verweil.core.model.GeoPoint
+import de.lukasrunge.verweil.core.timeline.PlaceTag
 import de.lukasrunge.verweil.core.timeline.TimelineEntry
 import de.lukasrunge.verweil.core.timeline.TrackSegment
 import de.lukasrunge.verweil.core.timeline.TravelMode
@@ -155,6 +156,7 @@ private fun TimelineEntryDto.toEntry(): TimelineEntry? = when (type) {
         // Visits created with Dawarich's placeholder name "Suggested place" keep it at a place Dawarich already knows.
         name = listOf(name, place?.name, area?.name).firstOrNull { !it.isNullOrBlank() && it != SUGGESTED_PLACE },
         visitId = visitId,
+        tags = tags.map { PlaceTag(it.name, it.icon?.takeIf(String::isNotBlank), it.color?.takeIf(String::isNotBlank)) },
     )
     // Stationary tracks are stays Dawarich did not make a visit of; the visits already cover them.
     "journey" -> if (dominantMode == "stationary") null else TimelineEntry.Move(

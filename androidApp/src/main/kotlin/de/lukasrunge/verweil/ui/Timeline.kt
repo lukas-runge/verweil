@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.lukasrunge.verweil.R
 import de.lukasrunge.verweil.core.timeline.Source
@@ -291,11 +290,11 @@ private fun EntryRow(
                     if (isStay && !live && (fromYesterday || intoTomorrow)) stringResource(R.string.timeline_total, duration(endMs - entry.startMs)) else null,
                 )
                 when (entry) {
-                    is TimelineEntry.Stay -> Text(
+                    is TimelineEntry.Stay -> PlaceName(
                         entry.name ?: stringResource(R.string.timeline_stay),
+                        entry.tags,
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
                     is TimelineEntry.Move -> Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
