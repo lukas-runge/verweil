@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.datastore.preferences)
 
+    implementation(libs.androidx.car.app)
     implementation(libs.play.services.location)
     implementation(libs.play.services.code.scanner)
     implementation(libs.kotlinx.coroutines.play.services)

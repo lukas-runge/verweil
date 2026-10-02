@@ -3,6 +3,7 @@ package de.lukasrunge.verweil.core.engine
 import de.lukasrunge.verweil.core.geo.distanceMeters
 import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.ActivityChange
+import de.lukasrunge.verweil.core.model.CarConnection
 import de.lukasrunge.verweil.core.model.EngineOutput
 import de.lukasrunge.verweil.core.model.Fix
 import de.lukasrunge.verweil.core.model.GeoPoint
@@ -45,6 +46,10 @@ class Scenario(private val origin: GeoPoint = GeoPoint(52.5200, 13.4050)) {
 
     fun activity(activity: Activity) {
         events += ActivityChange(nowMs, activity)
+    }
+
+    fun car(connected: Boolean) {
+        events += CarConnection(nowMs, connected)
     }
 
     fun wifi(vararg bssids: String) {

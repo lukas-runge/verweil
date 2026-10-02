@@ -4,6 +4,7 @@ import de.lukasrunge.verweil.core.geo.distanceMeters
 import de.lukasrunge.verweil.core.geo.weightedMedian
 import de.lukasrunge.verweil.core.model.Activity
 import de.lukasrunge.verweil.core.model.ActivityChange
+import de.lukasrunge.verweil.core.model.CarConnection
 import de.lukasrunge.verweil.core.model.EngineOutput
 import de.lukasrunge.verweil.core.model.Fix
 import de.lukasrunge.verweil.core.model.GeoPoint
@@ -35,6 +36,8 @@ enum class Mode { MOVING, SETTLING, STAYING, LEAVING }
 class EngineState(
     var mode: Mode = Mode.MOVING,
     var activity: Activity = Activity.UNKNOWN,
+    /** Connected to a car: whatever the phone guesses, the user is driving. */
+    var inCar: Boolean = false,
 
     // Plausibility reference.
     var lastAccepted: Fix? = null,
@@ -101,6 +104,7 @@ class StayEngine(
         when (event) {
             is Fix -> onFix(event, out)
             is ActivityChange -> onActivity(event, out)
+            is CarConnection -> onCar(event, out)
             is WifiScan -> onWifi(event, out)
             is GeofenceExit -> if (s.mode == Mode.STAYING) startLeaving(event.timeMs, null, out)
             is Tick -> Unit
@@ -129,8 +133,10 @@ class StayEngine(
         s.pausedAtMs = null
         if (nowMs - s.lastPresenceMs <= config.resumeWindow.inWholeMilliseconds) return
         val activity = s.activity
+        val inCar = s.inCar
         out += finish()
         s.activity = activity
+        s.inCar = inCar
     }
 
     /**
@@ -213,17 +219,30 @@ class StayEngine(
     }
 
     private fun onActivity(event: ActivityChange, out: MutableList<EngineOutput>) {
-        s.activity = event.activity
+        // In the car the phone's guess is noise: in town traffic it says cycling, at a red light still.
+        // A stay while connected still shows in the fixes, e.g. waiting in the parked car with the engine on.
+        changeActivity(if (s.inCar) Activity.VEHICLE else event.activity, event.timeMs, out)
+    }
+
+    /** Getting into the car is leaving. Getting out leaves the activity to the phone's next guess. */
+    private fun onCar(event: CarConnection, out: MutableList<EngineOutput>) {
+        val wasInCar = s.inCar
+        s.inCar = event.connected
+        if (event.connected && !wasInCar) changeActivity(Activity.VEHICLE, event.timeMs, out)
+    }
+
+    private fun changeActivity(activity: Activity, timeMs: Long, out: MutableList<EngineOutput>) {
+        s.activity = activity
         when (s.mode) {
             Mode.MOVING -> if (s.activity == Activity.STILL) {
-                val seed = s.lastAccepted?.takeIf { event.timeMs - it.timeMs <= config.settleWindow.inWholeMilliseconds }
-                startSettling(event.timeMs, listOfNotNull(seed), out)
+                val seed = s.lastAccepted?.takeIf { timeMs - it.timeMs <= config.settleWindow.inWholeMilliseconds }
+                startSettling(timeMs, listOfNotNull(seed), out)
             }
 
             Mode.SETTLING -> Unit
             Mode.STAYING -> when {
-                s.activity.isMoving -> startLeaving(event.timeMs, null, out)
-                s.activity == Activity.STILL -> present(event.timeMs)
+                s.activity.isMoving -> startLeaving(timeMs, null, out)
+                s.activity == Activity.STILL -> present(timeMs)
                 else -> Unit
             }
 

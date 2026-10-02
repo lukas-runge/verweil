@@ -364,6 +364,53 @@ class StayEngineTest {
         }
     }
 
+    @Test
+    fun inTheCarTheTrackIsDrivingWhateverThePhoneGuesses() {
+        val s = Scenario()
+        s.car(connected = true)
+        // Town traffic: the phone takes it for cycling, and for still at a red light.
+        repeat(60) { i ->
+            if (i == 10) s.activity(Activity.CYCLING)
+            if (i == 30) s.activity(Activity.STILL)
+            if (i == 32) s.activity(Activity.CYCLING)
+            s.fix(eastM = i * 40.0, northM = 0.0, speed = 8.0)
+            s.advance(5.seconds)
+        }
+        val parkedAt = s.nowMs
+        s.car(connected = false)
+        s.activity(Activity.WALKING)
+        repeat(12) { i ->
+            s.fix(eastM = 2400.0, northM = i * 7.0)
+            s.advance(5.seconds)
+        }
+
+        val out = s.runToEnd()
+
+        assertTrue(out.none { it is StayStarted }, "a red light is no stay")
+        val points = out.filterIsInstance<TrackPoint>()
+        assertTrue(points.filter { it.fix.timeMs < parkedAt }.all { it.activity == Activity.VEHICLE })
+        assertEquals(Activity.WALKING, points.last().activity, "out of the car, the phone decides again")
+    }
+
+    @Test
+    fun gettingIntoTheCarStartsLeavingAStay() {
+        val s = Scenario()
+        walkEast(s, fromM = 0.0, minutes = 2)
+        s.activity(Activity.STILL)
+        repeat(20) {
+            s.advance(1.minutes)
+            s.fix(eastM = 168.0, northM = 0.0, accuracy = 20.0)
+        }
+        val engine = StayEngine()
+        s.run(engine)
+        assertEquals(Mode.STAYING, engine.mode)
+
+        s.car(connected = true)
+        s.run(engine)
+
+        assertEquals(Mode.LEAVING, engine.mode)
+    }
+
     /** A 100 × 60 m loop at walking pace that starts and ends at the origin, never farther than 117 m from it. */
     private fun walkAroundTheBlock(s: Scenario, accuracy: Double) {
         val corners = listOf(0.0 to 0.0, 100.0 to 0.0, 100.0 to 60.0, 0.0 to 60.0, 0.0 to 0.0)

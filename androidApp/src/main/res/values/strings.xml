@@ -147,6 +147,10 @@
     <string name="settings_tracking">Tracking</string>
     <string name="settings_place_names">Show place names</string>
     <string name="settings_place_names_detail">Names stays in the timeline. The phone\'s geocoder, usually Google\'s, receives their coordinates.</string>
+    <string name="settings_car">Your car</string>
+    <string name="settings_car_none">Android Auto only. Choose your car\'s Bluetooth for more</string>
+    <string name="car_dialog_text">While the phone is connected to one of these, or Android Auto runs, you are driving: the phone\'s own guess often says cycling in town traffic.</string>
+    <string name="car_dialog_none_paired">No Bluetooth devices are paired with this phone.</string>
     <string name="settings_reliability">Tracking stops anyway?</string>
     <string name="settings_reliability_detail">Help for Samsung, Xiaomi and other phones that stop background apps</string>
     <string name="settings_on_this_phone">On this phone</string>

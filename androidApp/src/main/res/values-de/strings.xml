@@ -145,6 +145,10 @@
     <string name="settings_tracking">Tracking</string>
     <string name="settings_place_names">Ortsnamen anzeigen</string>
     <string name="settings_place_names_detail">Benennt Aufenthalte in der Timeline. Der Geocoder des Telefons, meist der von Google, erhält dafür ihre Koordinaten.</string>
+    <string name="settings_car">Dein Auto</string>
+    <string name="settings_car_none">Nur Android Auto. Wähle das Bluetooth deines Autos für mehr</string>
+    <string name="car_dialog_text">Solange das Telefon mit einem davon verbunden ist oder Android Auto läuft, fährst du Auto: Das Telefon selbst hält Stadtverkehr oft für Radfahren.</string>
+    <string name="car_dialog_none_paired">Mit diesem Telefon sind keine Bluetooth-Geräte gekoppelt.</string>
     <string name="settings_reliability">Tracking stoppt trotzdem?</string>
     <string name="settings_reliability_detail">Hilfe für Samsung, Xiaomi und andere Telefone, die Hintergrund-Apps beenden</string>
     <string name="settings_on_this_phone">Auf diesem Telefon</string>

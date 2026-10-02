@@ -1,10 +1,16 @@
 package de.lukasrunge.verweil.ui
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -35,11 +41,13 @@ import de.lukasrunge.verweil.core.dawarich.formatHeaderLines
 import de.lukasrunge.verweil.core.dawarich.parseHeaderLines
 import de.lukasrunge.verweil.core.tracking.Tracker
 import de.lukasrunge.verweil.tracking.TrackingService
+import de.lukasrunge.verweil.tracking.canUseBluetooth
+import de.lukasrunge.verweil.tracking.pairedBluetoothDevices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Dialog { DeviceName, Headers, SignOut, ForgetPlaces, ClearTimeline }
+private enum class Dialog { DeviceName, Headers, Car, SignOut, ForgetPlaces, ClearTimeline }
 
 @Composable
 fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit, onOpenDiagnostics: () -> Unit) {
@@ -52,6 +60,10 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
     val knownPlaces by produceState(0L, dialog) { value = withContext(Dispatchers.IO) { app.places.count() } }
     val pending by produceState(0L, dialog) { value = withContext(Dispatchers.IO) { app.outbox.counts().pending } }
     val host = settings.serverUrl.toUri().host ?: settings.serverUrl
+    val paired by produceState(emptyMap<String, String>(), dialog) { value = context.pairedBluetoothDevices() }
+    val askBluetooth = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) dialog = Dialog.Car
+    }
 
     SubScreen(title = stringResource(R.string.settings_title), onBack = onBack) {
         SectionTitle(stringResource(R.string.settings_account))
@@ -87,6 +99,16 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
             stringResource(R.string.settings_place_names_detail),
             checked = settings.lookUpPlaceNames,
         ) { scope.launch { app.settings.setLookUpPlaceNames(it) } }
+        ListRow(
+            R.drawable.ic_directions_car,
+            stringResource(R.string.settings_car),
+            detail = settings.carDevices.map { paired[it] ?: it }.sorted().joinToString(", ")
+                .ifEmpty { stringResource(R.string.settings_car_none) },
+            onClick = {
+                if (context.canUseBluetooth()) dialog = Dialog.Car
+                else askBluetooth.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            },
+        )
         ListRow(
             R.drawable.ic_battery_alert,
             stringResource(R.string.settings_reliability),
@@ -149,6 +171,12 @@ fun SettingsScreen(app: VerweilApp, settings: SettingsValues, onBack: () -> Unit
             initial = formatHeaderLines(settings.customHeaders),
             singleLine = false,
             onSave = { scope.launch { app.settings.setCustomHeaders(parseHeaderLines(it)) } },
+            onDismiss = { dialog = null },
+        )
+        Dialog.Car -> CarDialog(
+            paired = paired,
+            initial = settings.carDevices,
+            onSave = { scope.launch { app.settings.setCarDevices(it) } },
             onDismiss = { dialog = null },
         )
         Dialog.SignOut -> SignOutDialog(
@@ -226,6 +254,47 @@ private fun TextDialog(
         confirmButton = {
             TextButton(onClick = {
                 onSave(value)
+                onDismiss()
+            }) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+/** Which paired Bluetooth devices are cars; Android Auto counts without choosing. */
+@Composable
+private fun CarDialog(paired: Map<String, String>, initial: Set<String>, onSave: (Set<String>) -> Unit, onDismiss: () -> Unit) {
+    var chosen by rememberSaveable { mutableStateOf(initial.toList()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_car)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.car_dialog_text), style = MaterialTheme.typography.bodyMedium)
+                if (paired.isEmpty()) {
+                    Text(
+                        stringResource(R.string.car_dialog_none_paired),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+                paired.entries.sortedBy { it.value.lowercase() }.forEach { (address, name) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { chosen = if (address in chosen) chosen - address else chosen + address },
+                    ) {
+                        Checkbox(checked = address in chosen, onCheckedChange = null, modifier = Modifier.padding(12.dp))
+                        Text(name)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(chosen.toSet())
                 onDismiss()
             }) { Text(stringResource(R.string.action_save)) }
         },

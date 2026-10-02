@@ -47,6 +47,8 @@ import de.lukasrunge.verweil.upload.UploadWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -88,6 +90,8 @@ class TrackingService : LifecycleService() {
 
     @Volatile
     private var wifi: WifiScanner? = null
+
+    private var car: CarDetector? = null
 
     /** The user stopped tracking, as opposed to the system stopping the service. */
     @Volatile
@@ -162,6 +166,9 @@ class TrackingService : LifecycleService() {
 
         lifecycleScope.launch { app.settings.values.collect { recordRawEvents = it.recordRawEvents } }
         lifecycleScope.launch { app.sensorEvents.collect { events.trySend(it) } }
+        val carDetector = CarDetector(this, this) { events.trySend(it) }.also { car = it }
+        carDetector.start()
+        lifecycleScope.launch { app.settings.values.map { it.carDevices }.distinctUntilChanged().collect(carDetector::setCarDevices) }
         lifecycleScope.launch {
             // Lets engine timeouts fire even when no sensor reports anything.
             while (isActive) {
@@ -194,6 +201,7 @@ class TrackingService : LifecycleService() {
             }
             unregisterReceiver(locationModeReceiver)
             wifi?.stop()
+            car?.stop()
         }
         events.close()
         app.status.update { it.copy(running = false, mode = null) }

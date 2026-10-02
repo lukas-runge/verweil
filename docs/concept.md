@@ -75,6 +75,11 @@ All logic lives in a platform-independent engine that consumes a stream of event
 | `Fix(time, lat, lon, accuracy, speed?, altitude?)` | Fused Location Provider | Core Location |
 | `Activity(time, type)` with `STILL`, `WALKING`, `RUNNING`, `CYCLING`, `VEHICLE`, `UNKNOWN` | Activity Recognition Transition API | Core Motion activity |
 | `WifiScan(time, bssids)` | `WifiManager` scan results | not available (iOS blocks Wi-Fi scanning) |
+| `CarConnection(time, connected)` | Android Auto (`CarConnection`), or a Bluetooth device the user marked as their car | CarPlay, Bluetooth audio route |
+
+While connected to a car, every activity counts as `VEHICLE`: in town traffic the phone's own guess is often cycling,
+and at a red light still. Connecting starts a departure like a moving activity. Disconnecting changes nothing until
+the phone's next activity. Dawarich takes the `driving` motion of the track points as a strong hint for the mode.
 
 The engine uses no wall clock. Time comes only from the events.
 That makes it deterministic and replayable (see [Tuning by replay](#tuning-by-replay)).

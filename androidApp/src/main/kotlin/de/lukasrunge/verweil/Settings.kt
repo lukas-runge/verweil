@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import de.lukasrunge.verweil.core.dawarich.DawarichCredentials
 import de.lukasrunge.verweil.core.dawarich.formatHeaderLines
@@ -34,6 +35,8 @@ data class SettingsValues(
     val trackingEnabled: Boolean = false,
     /** The user went through the permission steps once; later gaps show on the main screen instead. */
     val setupDone: Boolean = false,
+    /** Bluetooth addresses of the user's cars: connected to one, the user is driving. */
+    val carDevices: Set<String> = emptySet(),
 ) {
     val isConfigured: Boolean get() = serverUrl.isNotBlank() && apiKey.isNotBlank()
 }
@@ -58,6 +61,7 @@ class Settings(private val context: Context) {
         val lookUpPlaceNames = booleanPreferencesKey("look_up_place_names")
         val trackingEnabled = booleanPreferencesKey("tracking_enabled")
         val setupDone = booleanPreferencesKey("setup_done")
+        val carDevices = stringSetPreferencesKey("car_devices")
         val wifiSalt = stringPreferencesKey("wifi_salt")
         val lastUploadMs = longPreferencesKey("last_upload_ms")
         val uploadError = stringPreferencesKey("upload_error")
@@ -77,6 +81,7 @@ class Settings(private val context: Context) {
             lookUpPlaceNames = prefs[Keys.lookUpPlaceNames] ?: defaults.lookUpPlaceNames,
             trackingEnabled = prefs[Keys.trackingEnabled] ?: defaults.trackingEnabled,
             setupDone = prefs[Keys.setupDone] ?: defaults.setupDone,
+            carDevices = prefs[Keys.carDevices] ?: defaults.carDevices,
         )
     }
 
@@ -95,6 +100,8 @@ class Settings(private val context: Context) {
     suspend fun setSetupDone() = edit { it[Keys.setupDone] = true }
 
     suspend fun setRecordRawEvents(enabled: Boolean) = edit { it[Keys.recordRawEvents] = enabled }
+
+    suspend fun setCarDevices(addresses: Set<String>) = edit { it[Keys.carDevices] = addresses }
 
     suspend fun setLookUpPlaceNames(enabled: Boolean) = edit { it[Keys.lookUpPlaceNames] = enabled }
 
