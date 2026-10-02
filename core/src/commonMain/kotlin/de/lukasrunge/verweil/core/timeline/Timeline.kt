@@ -92,7 +92,8 @@ fun mergeTimeline(dawarich: List<TimelineEntry>, phone: List<Segment>): List<Tim
     phone.sortedBy { it.startMs }.forEach { segment ->
         val entry = segment.toEntry()
         val sameKind = result.filter { it.source == Source.DAWARICH && it.isSameKindAs(entry) }
-        val newest = result.filter { it.source == Source.DAWARICH }.maxByOrNull { it.endMs }
+        // Dawarich's last row, not the one ending last: its visits can run on past a walk it also tracked.
+        val newest = result.filter { it.source == Source.DAWARICH }.maxByOrNull { it.startMs }
         if (newest != null && newest.isSameKindAs(entry) && entry.endMs > newest.endMs &&
             entry.startMs <= newest.endMs + CONTINUATION_MS
         ) {

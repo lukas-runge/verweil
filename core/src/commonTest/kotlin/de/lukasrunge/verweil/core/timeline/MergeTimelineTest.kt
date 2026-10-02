@@ -113,6 +113,21 @@ class MergeTimelineTest {
     }
 
     @Test
+    fun aStayAfterAWalkInsideDawarichsVisitComesAfterTheWalk() {
+        // Dawarich's visit runs on past the short walk it also tracked; the phone's stay began after the walk.
+        val dawarich = listOf(serverMove(0, 20), serverStay(20, 34, "Musterstraße 1"), serverMove(29, 33))
+        val phone = listOf(stay(33, 280, ongoing = true))
+
+        val merged = mergeTimeline(dawarich, phone)
+
+        assertEquals(listOf(minutes(0), minutes(20), minutes(29), minutes(33)), merged.map { it.startMs })
+        assertEquals(minutes(34), merged[1].endMs, "Dawarich's visit is not stretched")
+        val now = merged.last() as TimelineEntry.Stay
+        assertTrue(now.ongoing)
+        assertEquals("Musterstraße 1", now.name)
+    }
+
+    @Test
     fun aStayThatJustBeganIsShown() {
         // Until its first heartbeat, an ongoing stay ends where it starts.
         val dawarich = listOf(serverStay(0, 100, "Zuhause"), serverMove(150, 166))
